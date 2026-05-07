@@ -22,6 +22,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, nullable, weak) id<MLListDataSource> dataSource;
 
+- (instancetype)initWithAdapter:(IGListAdapter *)adapter;
+
+- (void)performUpdatesAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion;
+
+- (void)reloadObjects:(NSArray *)objects;
+
 @end
 
 NS_ASSUME_NONNULL_END

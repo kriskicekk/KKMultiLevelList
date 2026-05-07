@@ -15,7 +15,7 @@
 
 @interface MLListManager() <IGListAdapterDataSource, MLFlattenedItemSectionControllerDelegate>
 
-@property (nonatomic, nullable, strong) NSMutableArray<MLFlattenedItemModel *> *visibleItems;
+@property (nonatomic, nullable, strong) NSArray<MLFlattenedItemModel *> *visibleItems;
 
 @property (nonatomic, nullable, strong) MLListFlattenService *flattenService;
 
@@ -26,7 +26,7 @@
 - (instancetype)initWithAdapter:(IGListAdapter *)adapter {
     if (self = [super init]) {
         _adapter = adapter;
-        _adapter.delegate = self;
+        _adapter.dataSource = self;
         _flattenService = [[MLListFlattenService alloc] init];
     }
     return self;
@@ -78,11 +78,23 @@
     }
 }
 
+- (UIEdgeInsets)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController insetForItemModel:(MLFlattenedItemModel *)model {
+    if ([self.delegate respondsToSelector:@selector(flattenedItemSectionController:insetForItemModel:)]) {
+        return [self.delegate flattenedItemSectionController:sectionController insetForItemModel:model];
+    } else {
+        return UIEdgeInsetsZero;
+    }
+}
+
 #pragma mark - Perform Update
 
 - (void)performUpdatesAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion {
     self.flattenService.rootItems = [[self.dataSource objectsForMLListManager:self] copy];
     [self reloadVisibleItemsAnimated:animated completion:completion];
+}
+
+- (void)reloadObjects:(NSArray *)objects {
+    [self.adapter reloadObjects:objects];
 }
 
 #pragma mark - Private
@@ -92,4 +104,4 @@
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
 
-@end;
+@end

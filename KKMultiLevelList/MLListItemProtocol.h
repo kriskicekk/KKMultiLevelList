@@ -8,7 +8,7 @@
 #ifndef MLListItemProtocol_h
 #define MLListItemProtocol_h
 
-#import <IGListKit/IGListAdapter.h>
+#import <IGListKit/IGListKit.h>
 
 @protocol MLListItemProtocol <IGListDiffable>
 

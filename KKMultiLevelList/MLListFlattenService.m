@@ -22,10 +22,10 @@
 - (void)appendVisibleItemsForObject:(id<MLListItemProtocol>)object
                               level:(NSInteger)level
                             toArray:(NSMutableArray<MLFlattenedItemModel *> *)visibleItems {
-    MLFlattenedItemModel *normalItem = [[MLFlattenedItemModel alloc] initWithDifferableObject:object level:level type:MLFlattenedItemTypeNormal];
-    [visibleItems addObject:normalItem];
+    MLFlattenedItemModel *cellItem = [[MLFlattenedItemModel alloc] initWithDifferableObject:object level:level type:MLFlattenedItemTypeNormal];
+    [visibleItems addObject:cellItem];
     
-    NSInteger visibleChildrenCount = MAX(object.children.count, object.visibleChildrenCount);
+    NSInteger visibleChildrenCount = MIN(object.children.count, object.visibleChildrenCount);
     NSArray<id<MLListItemProtocol>> *visibleChildren = [object.children subarrayWithRange:NSMakeRange(0, visibleChildrenCount)];
     for (id<MLListItemProtocol> child in visibleChildren) {
         [self appendVisibleItemsForObject:child level:level + 1 toArray:visibleItems];

@@ -10,6 +10,16 @@
 
 #import "MLListItemProtocol.h"
 
+typedef NS_ENUM(NSInteger, MLFlattenedItemStatus) {
+    MLFlattenedItemStatusDefault = 0,
+    MLFlattenedItemStatusCollapsed,
+    MLFlattenedItemStatusPartiallyExpanded,
+    MLFlattenedItemStatusFullyExpanded,
+    MLFlattenedItemStatusLoading,
+    MLFlattenedItemStatusCollapsing,
+    MLFlattenedItemStatusLoadFailed
+};
+
 typedef NS_ENUM(NSInteger, MLFlattenedItemType) {
     MLFlattenedItemTypeNormal = 0,
     MLFlattenedItemTypeFooter
@@ -23,9 +33,13 @@ typedef NS_ENUM(NSInteger, MLFlattenedItemType) {
 
 @property (nonatomic, assign) NSInteger level;
 
-@property (nonatomic, assign, readonly) BOOL isExpaned;
+@property (nonatomic, assign) NSInteger visibleChildrenCount;
 
-@property (nonatomic, assign, readonly) BOOL isLoading;
+@property (nonatomic, assign) NSInteger totalChildrenCount;
+
+@property (nonatomic, assign, readonly) NSInteger remainingChildrenCount;
+
+@property (nonatomic, assign) MLFlattenedItemStatus status;
 
 - (instancetype)initWithDifferableObject:(id<MLListItemProtocol>)object
                                    level:(NSInteger)level

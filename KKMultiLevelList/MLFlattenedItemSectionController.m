@@ -18,8 +18,22 @@
     return self;
 }
 
+- (void)didUpdateToObject:(id)object {
+    if ([object isKindOfClass:[MLFlattenedItemModel class]]) {
+        self.model = object;
+    }
+}
+
 - (NSInteger)numberOfItems {
     return 1;
+}
+
+- (UIEdgeInsets)inset {
+    if ([self.delegate respondsToSelector:@selector(flattenedItemSectionController:insetForItemModel:)]) {
+        return [self.delegate flattenedItemSectionController:self insetForItemModel:self.model];
+    } else {
+        return UIEdgeInsetsZero;
+    }
 }
 
 - (CGSize)sizeForItemAtIndex:(NSInteger)index {
