@@ -23,6 +23,7 @@
 @implementation MLListManager
 
 - (instancetype)initWithAdapter:(IGListAdapter *)adapter {
+    NSParameterAssert(adapter);
     if (self = [super init]) {
         _adapter = adapter;
         _adapter.dataSource = self;
@@ -32,6 +33,7 @@
 }
 
 - (instancetype)initWithAdapter:(IGListAdapter *)adapter flattenServiceParams:(MLListFlattenParams *)params {
+    NSParameterAssert(params);
     if (self = [[MLListManager alloc] initWithAdapter:adapter]) {
         _flattenService.params = params;
     }
@@ -57,18 +59,24 @@
 }
 
 - (nonnull IGListSectionController *)listAdapter:(nonnull IGListAdapter *)listAdapter sectionControllerForObject:(nonnull id)object {
+    NSAssert([object isKindOfClass:[MLFlattenedItemModel class]], @"MLListManager only supports MLFlattenedItemModel objects.");
+    // Each flattened object is rendered by one one-item section controller.
     MLFlattenedItemSectionController *sectionController = [[MLFlattenedItemSectionController alloc] init];
     sectionController.delegate = self;
     return sectionController;
 }
 
 - (nonnull NSArray<id<IGListDiffable>> *)objectsForListAdapter:(nonnull IGListAdapter *)listAdapter {
+    // IGListKit consumes the flattened projection, not the original tree.
     return self.visibleItems ?: @[];
 }
 
 #pragma mark - MLFlattenedItemSectionControllerDelegate
 
 - (__kindof UICollectionViewCell *)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController cellForItemAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model {
+    // Keep framework UI-free by forwarding normal rows and footer rows to the
+    // business delegate.
+    NSAssert(self.delegate != nil, @"MLListManager delegate must be set before rendering cells.");
     if (model.type == MLFlattenedItemTypeNormal && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:cellForItemAtIndex:withItemModel:)]) {
         return [self.delegate flattenedItemSectionController:sectionController cellForItemAtIndex:index withItemModel:model];
     } else if (model.type == MLFlattenedItemTypeFooter && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:footerForItemAtIndex:withItemModel:)]) {
@@ -79,6 +87,7 @@
 }
 
 - (CGSize)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController sizeForItemAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model {
+    NSAssert(self.delegate != nil, @"MLListManager delegate must be set before measuring cells.");
     if (model.type == MLFlattenedItemTypeNormal && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:cellSizeForItemAtIndex:withItemModel:)]) {
         return [self.delegate flattenedItemSectionController:sectionController cellSizeForItemAtIndex:index withItemModel:model];
     } else if (model.type == MLFlattenedItemTypeFooter && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:footerSizeForItemAtIndex:withItemModel:)]) {
@@ -89,6 +98,7 @@
 }
 
 - (void)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController didSelectAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model {
+    NSAssert(self.delegate != nil, @"MLListManager delegate must be set before handling selection.");
     if (model.type == MLFlattenedItemTypeNormal && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:didSelectCellAtIndex:withItemModel:)]) {
         [self.delegate flattenedItemSectionController:sectionController didSelectCellAtIndex:index withItemModel:model];
     } else if (model.type == MLFlattenedItemTypeFooter && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:didSelectFooterAtIndex:withItemModel:)]) {
@@ -109,11 +119,14 @@
 - (void)performUpdatesAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion {
     NSAssert(self.dataSource != nil, @"MLListManager dataSource must be set before performing updates.");
     NSArray<id<MLListItemProtocol>> *objects = [self.dataSource objectsForMLListManager:self] ?: @[];
+    // Capture an immutable root array snapshot for this update pass. The item
+    // objects themselves remain the business layer's source of truth.
     self.flattenService.rootItems = [objects copy];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
 
 - (void)reloadObjects:(NSArray<id<IGListDiffable>> *)objects {
+    NSParameterAssert(objects);
     [self.adapter reloadObjects:objects];
 }
 
@@ -128,6 +141,9 @@
         }
         
         dispatch_block_t reloadBlock = ^{
+            // Status changes can be triggered by a stale model retained by a
+            // cell or delayed block. Always reload the model currently present
+            // in visibleItems.
             MLFlattenedItemModel *currentModel = [strongSelf currentVisibleModelMatchingModel:changedModel];
             if (currentModel != nil) {
                 [strongSelf reloadObjects:@[currentModel]];
@@ -143,6 +159,7 @@
 }
 
 - (nullable MLFlattenedItemModel *)currentVisibleModelMatchingModel:(MLFlattenedItemModel *)model {
+    NSParameterAssert(model);
     for (MLFlattenedItemModel *visibleModel in self.visibleItems) {
         BOOL sameObject = visibleModel.differableObject == model.differableObject;
         BOOL sameType = visibleModel.type == model.type;
@@ -156,6 +173,9 @@
 - (void)appendFlattenItemsWithModel:(MLFlattenedItemModel *)model
                            animated:(BOOL)animated
                          completion:(IGListUpdaterCompletion)completion {
+    NSParameterAssert(model);
+    // Structural changes update visibleItems first, then ask IGListKit to diff
+    // the old and new flattened projections.
     [self.flattenService appendVisibleChildenItemsForRootModel:model];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
@@ -164,6 +184,7 @@
                atIndex:(NSUInteger)index
               animated:(BOOL)animated
             completion:(IGListUpdaterCompletion)completion {
+    NSParameterAssert(item);
     [self.flattenService insertRootItem:item atIndex:index];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
@@ -172,6 +193,7 @@
                 atIndex:(NSUInteger)index
                animated:(BOOL)animated
              completion:(IGListUpdaterCompletion)completion {
+    NSParameterAssert(items);
     [self.flattenService insertRootItems:items atIndex:index];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
@@ -180,6 +202,7 @@
               position:(MLListInsertPosition)position
               animated:(BOOL)animated
             completion:(IGListUpdaterCompletion)completion {
+    NSParameterAssert(item);
     [self.flattenService insertRootItem:item position:position];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
@@ -188,6 +211,7 @@
                position:(MLListInsertPosition)position
                animated:(BOOL)animated
              completion:(IGListUpdaterCompletion)completion {
+    NSParameterAssert(items);
     [self.flattenService insertRootItems:items position:position];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
@@ -197,6 +221,7 @@
           position:(MLListInsertPosition)position
           animated:(BOOL)animated
         completion:(IGListUpdaterCompletion)completion {
+    NSParameterAssert(item);
     [self.flattenService insertItem:item toParentItem:parentItem position:position];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
@@ -206,6 +231,7 @@
             position:(MLListInsertPosition)position
             animated:(BOOL)animated
           completion:(IGListUpdaterCompletion)completion {
+    NSParameterAssert(items);
     [self.flattenService insertItems:items toParentItem:parentItem position:position];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
@@ -213,6 +239,7 @@
 - (void)deleteFlattenItemsWithModel:(MLFlattenedItemModel *)model
                             animated:(BOOL)animated
                           completion:(IGListUpdaterCompletion)completion {
+    NSParameterAssert(model);
     [self.flattenService deleteVisibleChildenItemsForRootModel:model];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
@@ -220,6 +247,7 @@
 - (void)collapseFlattenItemsWithModel:(MLFlattenedItemModel *)model
                               animated:(BOOL)animated
                             completion:(IGListUpdaterCompletion)completion {
+    NSParameterAssert(model);
     [self.flattenService collapseVisibleChildenItemsForRootModel:model];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }

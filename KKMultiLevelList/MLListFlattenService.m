@@ -19,12 +19,16 @@
 #pragma mark - Setter
 
 - (void)setRootItems:(NSArray<id<MLListItemProtocol>> *)rootItems {
+    // Replacing root items establishes a new tree snapshot and rebuilds the
+    // visible projection from scratch.
     _rootItems = rootItems;
     _visibleItems = [self visibleItemsForItems:self.rootItems level:0];
 }
 
 - (void)setStatusDidChangeHandler:(MLFlattenedItemStatusDidChangeHandler)statusDidChangeHandler {
     _statusDidChangeHandler = [statusDidChangeHandler copy];
+    // Existing visible models need the new handler too; newly created models
+    // receive it in flattenedItemModelWithObject:parent:level:type:.
     for (MLFlattenedItemModel *model in self.visibleItems) {
         model.statusDidChangeHandler = _statusDidChangeHandler;
     }
@@ -35,6 +39,7 @@
 }
 
 - (NSArray<MLFlattenedItemModel *> *)visibleItemsForItems:(NSArray<id<MLListItemProtocol>> *)items level:(NSInteger)level {
+    NSAssert(level >= 0, @"Flatten level must be non-negative.");
     NSMutableArray<MLFlattenedItemModel *> *visibleItems = [NSMutableArray array];
     for (id<MLListItemProtocol> item in items) {
         [self appendVisibleItemsForObject:item parent:nil level:level toArray:visibleItems];
@@ -48,6 +53,7 @@
                                                 parent:(MLFlattenedItemModel *)parent
                                                  level:(NSInteger)level
                                                   type:(MLFlattenedItemType)type {
+    NSParameterAssert(object);
     MLFlattenedItemModel *model = [[MLFlattenedItemModel alloc] initWithDifferableObject:object
                                                                                   parent:parent
                                                                                    level:level
@@ -60,6 +66,14 @@
                              parent:(MLFlattenedItemModel *)parent
                               level:(NSInteger)level
                             toArray:(NSMutableArray<MLFlattenedItemModel *> *)visibleItems {
+    NSParameterAssert(object);
+    NSParameterAssert(visibleItems);
+    NSAssert(level >= 0, @"Flatten level must be non-negative.");
+    NSAssert(object.visibleChildrenCount >= 0, @"visibleChildrenCount must be non-negative.");
+    NSAssert(object.totalChildrenCount >= 0, @"totalChildrenCount must be non-negative.");
+
+    // A business item always generates a normal row. It may also generate a
+    // footer row after its currently visible descendants.
     MLFlattenedItemModel *cellItem = [self flattenedItemModelWithObject:object
                                                                   parent:parent
                                                                    level:level
@@ -83,6 +97,8 @@
 
 - (NSRange)visibleRangeForObject:(id<MLListItemProtocol>)object
                   inVisibleItems:(NSArray<MLFlattenedItemModel *> *)visibleItems {
+    NSParameterAssert(object);
+    NSParameterAssert(visibleItems);
     NSInteger startIndex = [self visibleIndexForObject:object type:MLFlattenedItemTypeNormal inVisibleItems:visibleItems];
     if (startIndex == NSNotFound) {
         return NSMakeRange(NSNotFound, 0);
@@ -92,6 +108,8 @@
     NSInteger endIndex = startIndex + 1;
     while (endIndex < visibleItems.count) {
         MLFlattenedItemModel *currentModel = visibleItems[endIndex];
+        // The subtree ends when the next row is not backed by the same object
+        // and returns to the same or a shallower level.
         if (currentModel.differableObject != object && currentModel.level <= startModel.level) {
             break;
         }
@@ -104,6 +122,9 @@
 - (NSInteger)visibleIndexForObject:(id<MLListItemProtocol>)object
                               type:(MLFlattenedItemType)type
                     inVisibleItems:(NSArray<MLFlattenedItemModel *> *)visibleItems {
+    NSParameterAssert(object);
+    NSParameterAssert(visibleItems);
+    NSAssert(type == MLFlattenedItemTypeNormal || type == MLFlattenedItemTypeFooter, @"Flattened item type is invalid.");
     for (NSInteger index = 0; index < visibleItems.count; index++) {
         MLFlattenedItemModel *visibleItem = visibleItems[index];
         if (visibleItem.differableObject == object && visibleItem.type == type) {
@@ -116,12 +137,15 @@
 - (void)replaceVisibleModelForObject:(id<MLListItemProtocol>)object
                                 type:(MLFlattenedItemType)type
                       inVisibleItems:(NSMutableArray<MLFlattenedItemModel *> *)visibleItems {
+    NSParameterAssert(object);
+    NSParameterAssert(visibleItems);
     NSInteger index = [self visibleIndexForObject:object type:type inVisibleItems:visibleItems];
     if (index == NSNotFound) {
         return;
     }
     
     MLFlattenedItemModel *oldModel = visibleItems[index];
+    // Replaced models should no longer be able to request UI reloads.
     oldModel.statusDidChangeHandler = nil;
     MLFlattenedItemModel *newModel = [self flattenedItemModelWithObject:object
                                                                   parent:oldModel.parent
@@ -133,12 +157,16 @@
 - (void)removeVisibleModelForObject:(id<MLListItemProtocol>)object
                                 type:(MLFlattenedItemType)type
                       inVisibleItems:(NSMutableArray<MLFlattenedItemModel *> *)visibleItems {
+    NSParameterAssert(object);
+    NSParameterAssert(visibleItems);
     NSInteger index = [self visibleIndexForObject:object type:type inVisibleItems:visibleItems];
     if (index == NSNotFound) {
         return;
     }
     
     MLFlattenedItemModel *model = visibleItems[index];
+    // Removed models may still be retained temporarily by cells or delayed
+    // blocks, but they should no longer drive UI updates.
     model.statusDidChangeHandler = nil;
     [visibleItems removeObjectAtIndex:index];
 }
@@ -146,6 +174,9 @@
 - (void)insertFlattenedItems:(NSArray<MLFlattenedItemModel *> *)flattenedItems
                      atIndex:(NSUInteger)index
              intoVisibleItems:(NSMutableArray<MLFlattenedItemModel *> *)visibleItems {
+    NSParameterAssert(flattenedItems);
+    NSParameterAssert(visibleItems);
+    NSAssert(index <= visibleItems.count, @"Insert index is out of visibleItems bounds.");
     if (flattenedItems.count == 0 || index > visibleItems.count) {
         return;
     }
@@ -161,6 +192,7 @@
         return;
     }
     
+    NSAssert(model.type == MLFlattenedItemTypeNormal || model.type == MLFlattenedItemTypeFooter, @"Append expects a normal or footer flattened model.");
     id<MLListItemProtocol> rootItem = model.differableObject;
     NSInteger oldVisibleChildrenCount = MIN(MAX(model.visibleChildrenCount, 0), rootItem.children.count);
     NSInteger expandBatchCount = MAX(self.params.expandBatchCount, 1);
@@ -173,6 +205,10 @@
     NSArray<id<MLListItemProtocol>> *newVisibleChildren = [rootItem.children subarrayWithRange:newChildrenRange];
     NSMutableArray<MLFlattenedItemModel *> *newFlattenedItems = [NSMutableArray array];
     MLFlattenedItemModel *parentModel = model.type == MLFlattenedItemTypeNormal ? model : model.parent;
+    NSAssert(parentModel != nil, @"Footer model must keep a parent normal model.");
+    if (parentModel == nil) {
+        return;
+    }
     for (id<MLListItemProtocol> child in newVisibleChildren) {
         [self appendVisibleItemsForObject:child parent:parentModel level:model.level + 1 toArray:newFlattenedItems];
     }
@@ -191,6 +227,8 @@
         return;
     }
     
+    // Update the business model first, then replace the affected flattened
+    // snapshots so IGListKit can diff the new footer text/status.
     rootItem.visibleChildrenCount = newVisibleChildrenCount;
     
     NSIndexSet *insertIndexes = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(insertIndex, newFlattenedItems.count)];
@@ -203,6 +241,7 @@
 
 - (void)insertRootItem:(id<MLListItemProtocol>)item
                atIndex:(NSUInteger)index {
+    NSParameterAssert(item);
     if (item == nil) {
         return;
     }
@@ -211,6 +250,7 @@
 
 - (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
                 atIndex:(NSUInteger)index {
+    NSParameterAssert(items);
     if (items.count == 0) {
         return;
     }
@@ -220,6 +260,8 @@
     NSUInteger insertIndex = MIN(index, oldRootItems.count);
     NSUInteger visibleInsertIndex = visibleItems.count;
     if (insertIndex < oldRootItems.count) {
+        // Insert before the flattened subtree of the root item that currently
+        // occupies the target root index.
         NSInteger nextVisibleIndex = [self visibleIndexForObject:oldRootItems[insertIndex] type:MLFlattenedItemTypeNormal inVisibleItems:visibleItems];
         if (nextVisibleIndex != NSNotFound) {
             visibleInsertIndex = nextVisibleIndex;
@@ -241,6 +283,7 @@
 
 - (void)insertRootItem:(id<MLListItemProtocol>)item
               position:(MLListInsertPosition)position {
+    NSParameterAssert(item);
     if (item == nil) {
         return;
     }
@@ -249,6 +292,7 @@
 
 - (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
                position:(MLListInsertPosition)position {
+    NSParameterAssert(items);
     NSArray<id<MLListItemProtocol>> *oldRootItems = self.rootItems ?: @[];
     NSUInteger insertIndex = position == MLListInsertPositionFirst ? 0 : oldRootItems.count;
     [self insertRootItems:items atIndex:insertIndex];
@@ -257,6 +301,7 @@
 - (void)insertItem:(id<MLListItemProtocol>)item
       toParentItem:(nullable id<MLListItemProtocol>)parentItem
           position:(MLListInsertPosition)position {
+    NSParameterAssert(item);
     if (item == nil) {
         return;
     }
@@ -266,6 +311,7 @@
 - (void)insertItems:(NSArray<id<MLListItemProtocol>> *)items
         toParentItem:(nullable id<MLListItemProtocol>)parentItem
             position:(MLListInsertPosition)position {
+    NSParameterAssert(items);
     if (items.count == 0) {
         return;
     }
@@ -283,7 +329,11 @@
     
     NSMutableArray<id<MLListItemProtocol>> *children = parentItem.children ?: [NSMutableArray array];
     NSArray<id<MLListItemProtocol>> *oldChildren = [children copy];
+    NSAssert(parentItem.visibleChildrenCount >= 0, @"visibleChildrenCount must be non-negative.");
+    NSAssert(parentItem.totalChildrenCount >= 0, @"totalChildrenCount must be non-negative.");
     NSInteger oldVisibleChildrenCount = MIN(MAX(parentItem.visibleChildrenCount, 0), oldChildren.count);
+    // Child insertions operate on the currently visible range. Inserting at
+    // the tail places new rows immediately before the footer.
     NSUInteger insertIndex = position == MLListInsertPositionFirst ? 0 : (NSUInteger)oldVisibleChildrenCount;
     insertIndex = MIN(insertIndex, oldChildren.count);
     
@@ -296,16 +346,22 @@
     
     NSUInteger visibleInsertIndex = visibleItems.count;
     if (position == MLListInsertPositionFirst && oldVisibleChildrenCount > 0 && oldChildren.count > 0) {
+        // First means "before the first currently visible child", not simply
+        // after the parent row.
         NSInteger firstVisibleChildIndex = [self visibleIndexForObject:oldChildren[0] type:MLFlattenedItemTypeNormal inVisibleItems:visibleItems];
         if (firstVisibleChildIndex != NSNotFound) {
             visibleInsertIndex = firstVisibleChildIndex;
         }
     } else if (insertIndex < oldVisibleChildrenCount && insertIndex < oldChildren.count) {
+        // When inserting inside the visible range, place new flattened rows
+        // before the child that previously lived at that visible index.
         NSInteger nextVisibleIndex = [self visibleIndexForObject:oldChildren[insertIndex] type:MLFlattenedItemTypeNormal inVisibleItems:visibleItems];
         if (nextVisibleIndex != NSNotFound) {
             visibleInsertIndex = nextVisibleIndex;
         }
     } else {
+        // Last means "after the last currently visible child". If a footer
+        // exists, the new rows should appear immediately before it.
         NSInteger footerIndex = [self visibleIndexForObject:parentItem type:MLFlattenedItemTypeFooter inVisibleItems:visibleItems];
         if (footerIndex != NSNotFound) {
             visibleInsertIndex = footerIndex;
@@ -333,6 +389,10 @@
         return;
     }
     
+    NSAssert(model.type == MLFlattenedItemTypeNormal, @"Delete expects a normal flattened model.");
+    if (model.type != MLFlattenedItemTypeNormal) {
+        return;
+    }
     id<MLListItemProtocol> deletedItem = model.differableObject;
     NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
     NSRange deleteRange = [self visibleRangeForObject:deletedItem inVisibleItems:visibleItems];
@@ -344,6 +404,7 @@
     id<MLListItemProtocol> parentItem = parentModel.differableObject;
     NSMutableArray<id<MLListItemProtocol>> *rootItems = [self.rootItems mutableCopy];
     
+    // Remove the whole visible subtree, not just the tapped row.
     [visibleItems removeObjectsInRange:deleteRange];
     
     if (parentItem != nil) {
@@ -353,6 +414,8 @@
             [parentItem.children removeObjectAtIndex:childIndex];
             parentItem.totalChildrenCount = MAX(parentItem.totalChildrenCount - 1, 0);
             if (childIndex < oldVisibleChildrenCount) {
+                // Only visible deletions reduce visibleChildrenCount. Deleting
+                // a hidden child should keep the visible range unchanged.
                 parentItem.visibleChildrenCount = MAX(oldVisibleChildrenCount - 1, 0);
             }
             parentItem.visibleChildrenCount = MIN(parentItem.visibleChildrenCount, parentItem.children.count);
@@ -379,6 +442,7 @@
         return;
     }
     
+    NSAssert(model.type == MLFlattenedItemTypeNormal || model.type == MLFlattenedItemTypeFooter, @"Collapse expects a normal or footer flattened model.");
     id<MLListItemProtocol> rootItem = model.differableObject;
     NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
     NSInteger rootIndex = [self visibleIndexForObject:rootItem type:MLFlattenedItemTypeNormal inVisibleItems:visibleItems];
@@ -390,11 +454,15 @@
     NSRange deleteRange = NSMakeRange(NSNotFound, 0);
     if (footerIndex != NSNotFound) {
         if (footerIndex > rootIndex + 1) {
+            // With footer mode, descendants are always between the parent row
+            // and the footer row.
             deleteRange = NSMakeRange(rootIndex + 1, footerIndex - rootIndex - 1);
         }
     } else {
         NSRange visibleRange = [self visibleRangeForObject:rootItem inVisibleItems:visibleItems];
         if (visibleRange.location != NSNotFound && visibleRange.length > 1) {
+            // Without footer mode, collapse removes everything after the parent
+            // within the visible subtree.
             deleteRange = NSMakeRange(visibleRange.location + 1, visibleRange.length - 1);
         }
     }
