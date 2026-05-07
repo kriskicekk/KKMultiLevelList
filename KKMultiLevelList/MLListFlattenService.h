@@ -10,6 +10,7 @@
 
 #import "MLListItemProtocol.h"
 #import "MLFlattenedItemModel.h"
+#import "MLListFlattenParams.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -17,7 +18,17 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, nullable, strong) NSArray<id<MLListItemProtocol>> *rootItems;
 
-- (nullable NSArray<MLFlattenedItemModel *> *)getVisibleItems;
+@property (nonatomic, strong) MLListFlattenParams *params;
+
+@property (nonatomic, nullable, copy) MLFlattenedItemStatusDidChangeHandler statusDidChangeHandler;
+
+@property (nonatomic, strong, readonly) NSArray<MLFlattenedItemModel *> *visibleItems;
+
+- (void)appendVisibleChildenItemsForRootModel:(MLFlattenedItemModel *)model;
+
+- (void)deleteVisibleChildenItemsForRootModel:(MLFlattenedItemModel *)model;
+
+- (void)collapseVisibleChildenItemsForRootModel:(MLFlattenedItemModel *)model;
 
 NS_ASSUME_NONNULL_END
 

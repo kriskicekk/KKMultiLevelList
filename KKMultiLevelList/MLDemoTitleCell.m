@@ -16,6 +16,7 @@
 @property (nonatomic, strong, readwrite) UILabel *arrowLabel;
 @property (nonatomic, strong, readwrite) UILabel *titleLabel;
 @property (nonatomic, strong, readwrite) UIView *separatorView;
+@property (nonatomic, nullable, strong, readwrite) MLFlattenedItemModel *model;
 @property (nonatomic, strong) NSLayoutConstraint *arrowWidthConstraint;
 
 @end
@@ -67,13 +68,14 @@
 }
 
 - (void)configureWithModel:(MLFlattenedItemModel *)model {
+    self.model = model;
     MLDemoListItem *item = (MLDemoListItem *)model.differableObject;
     BOOL hasChildren = model.totalChildrenCount > 0;
     CGFloat alpha = model.level == 0 ? 0.95 : (model.level == 1 ? 0.82 : 0.72);
     
     self.arrowLabel.hidden = !hasChildren;
     NSString *text;
-    if (model.status == MLFlattenedItemStatusPartiallyExpanded || model.status == MLFlattenedItemStatusPartiallyExpanded) {
+    if (model.status == MLFlattenedItemStatusPartiallyExpanded || model.status == MLFlattenedItemStatusFullyExpanded) {
         text = @"⌄";
     } else {
         text = @"›";

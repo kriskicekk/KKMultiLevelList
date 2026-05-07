@@ -11,12 +11,15 @@
 @implementation MLFlattenedItemModel
 
 - (instancetype)initWithDifferableObject:(id<MLListItemProtocol>)object
+                                  parent:(MLFlattenedItemModel *)parent
                                    level:(NSInteger)level
                                     type:(MLFlattenedItemType)type {
     if (self = [super init]) {
         _differableObject = object;
+        _parent = parent;
         _level = level;
         _type = type;
+        
         _visibleChildrenCount = object.visibleChildrenCount;
         _totalChildrenCount = object.totalChildrenCount;
         
@@ -34,11 +37,24 @@
 #pragma mark - Setter
 
 - (void)setVisibleChildrenCount:(NSInteger)visibleChildrenCount {
+    _visibleChildrenCount = visibleChildrenCount;
     self.differableObject.visibleChildrenCount = visibleChildrenCount;
 }
 
 - (void)setTotalChildrenCount:(NSInteger)totalChildrenCount {
+    _totalChildrenCount = totalChildrenCount;
     self.differableObject.totalChildrenCount = totalChildrenCount;
+}
+
+- (void)setStatus:(MLFlattenedItemStatus)status {
+    if (_status == status) {
+        return;
+    }
+    
+    _status = status;
+    if (self.statusDidChangeHandler) {
+        self.statusDidChangeHandler(self);
+    }
 }
 
 #pragma mark - Getter

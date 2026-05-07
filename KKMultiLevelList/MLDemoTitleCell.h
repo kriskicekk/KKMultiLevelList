@@ -17,6 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, readonly) UILabel *arrowLabel;
 @property (nonatomic, strong, readonly) UILabel *titleLabel;
 @property (nonatomic, strong, readonly) UIView *separatorView;
+@property (nonatomic, nullable, strong, readonly) MLFlattenedItemModel *model;
 
 - (void)configureWithModel:(MLFlattenedItemModel *)model;
 

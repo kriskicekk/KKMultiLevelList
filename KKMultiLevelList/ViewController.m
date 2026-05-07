@@ -30,6 +30,8 @@ static NSInteger const kDemoExpandItemsPerStep = 3;
 - (MLDemoListItem *)groupNodeWithId:(NSString *)nodeId name:(NSString *)name leafTitles:(NSArray<NSString *> *)leafTitles;
 - (NSArray<MLDemoListItem *> *)leafNodesWithPrefix:(NSString *)prefix titles:(NSArray<NSString *> *)titles;
 - (void)expandNode:(MLDemoListItem *)node initialVisibleCount:(NSInteger)count;
+- (void)handleTitleCellLongPress:(UILongPressGestureRecognizer *)gestureRecognizer;
+- (void)presentDeleteConfirmationForModel:(MLFlattenedItemModel *)model;
 
 @end
 
@@ -324,6 +326,17 @@ static NSInteger const kDemoExpandItemsPerStep = 3;
 - (UICollectionViewCell *)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController cellForItemAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model {
     MLDemoTitleCell *cell = [sectionController.collectionContext dequeueReusableCellOfClass:MLDemoTitleCell.class forSectionController:sectionController atIndex:index];
     [cell configureWithModel:model];
+    BOOL hasLongPress = NO;
+    for (UIGestureRecognizer *gestureRecognizer in cell.gestureRecognizers) {
+        if ([gestureRecognizer isKindOfClass:UILongPressGestureRecognizer.class]) {
+            hasLongPress = YES;
+            break;
+        }
+    }
+    if (!hasLongPress) {
+        UILongPressGestureRecognizer *longPressGesture = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleTitleCellLongPress:)];
+        [cell addGestureRecognizer:longPressGesture];
+    }
     return cell;
 }
 
@@ -348,6 +361,14 @@ static NSInteger const kDemoExpandItemsPerStep = 3;
 - (void)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController didSelectCellAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model {
     MLDemoListItem *item = (MLDemoListItem *)model.differableObject;
     self.tipLabel.text = [NSString stringWithFormat:@"点击节点：%@，当前层级：%ld。", item.title, (long)model.level + 1];
+    
+    if (!self.listManager.flattenService.params.usesFooter && model.totalChildrenCount > 0) {
+        if (model.status == MLFlattenedItemStatusCollapsed || model.status == MLFlattenedItemStatusPartiallyExpanded) {
+            [self.listManager appendFlattenItemsWithModel:model animated:YES completion:nil];
+        } else if (model.status == MLFlattenedItemStatusFullyExpanded) {
+            [self.listManager collapseFlattenItemsWithModel:model animated:YES completion:nil];
+        }
+    }
 }
 
 - (void)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController didSelectFooterAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model {
@@ -360,17 +381,14 @@ static NSInteger const kDemoExpandItemsPerStep = 3;
         [self.listManager reloadObjects:@[model]];
         
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            NSInteger newVisibleCount = MIN(model.visibleChildrenCount + kDemoExpandItemsPerStep, model.totalChildrenCount);
-            model.visibleChildrenCount = newVisibleCount;
-            [self.listManager performUpdatesAnimated:YES completion:nil];
+            [self.listManager appendFlattenItemsWithModel:model animated:YES completion:nil];
         });
         return;
     } else if (model.status == MLFlattenedItemStatusFullyExpanded) {
         model.status = MLFlattenedItemStatusCollapsing;
         [self.listManager reloadObjects:@[model]];
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            model.visibleChildrenCount = 0;
-            [self.listManager performUpdatesAnimated:YES completion:nil];
+            [self.listManager collapseFlattenItemsWithModel:model animated:YES completion:nil];
         });
     }
 }
@@ -378,6 +396,34 @@ static NSInteger const kDemoExpandItemsPerStep = 3;
 - (UIEdgeInsets)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController insetForItemModel:(MLFlattenedItemModel *)model {
     CGFloat leftInset = model.level * 20.0;
     return UIEdgeInsetsMake(2.0, leftInset, 2.0, 0.0);
+}
+
+#pragma mark - Delete Example
+
+- (void)handleTitleCellLongPress:(UILongPressGestureRecognizer *)gestureRecognizer {
+    if (gestureRecognizer.state != UIGestureRecognizerStateBegan) {
+        return;
+    }
+    
+    MLDemoTitleCell *cell = (MLDemoTitleCell *)gestureRecognizer.view;
+    if (![cell isKindOfClass:MLDemoTitleCell.class] || cell.model == nil) {
+        return;
+    }
+    
+    [self presentDeleteConfirmationForModel:cell.model];
+}
+
+- (void)presentDeleteConfirmationForModel:(MLFlattenedItemModel *)model {
+    MLDemoListItem *item = (MLDemoListItem *)model.differableObject;
+    NSString *message = [NSString stringWithFormat:@"确定删除「%@」吗？", item.title];
+    UIAlertController *alertController = [UIAlertController alertControllerWithTitle:@"删除节点"
+                                                                             message:message
+                                                                      preferredStyle:UIAlertControllerStyleAlert];
+    [alertController addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [alertController addAction:[UIAlertAction actionWithTitle:@"删除" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action) {
+        [self.listManager deleteFlattenItemsWithModel:model animated:YES completion:nil];
+    }]];
+    [self presentViewController:alertController animated:YES completion:nil];
 }
 
 @end

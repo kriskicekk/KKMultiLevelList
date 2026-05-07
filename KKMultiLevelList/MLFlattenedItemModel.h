@@ -10,6 +10,8 @@
 
 #import "MLListItemProtocol.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 typedef NS_ENUM(NSInteger, MLFlattenedItemStatus) {
     MLFlattenedItemStatusDefault = 0,
     MLFlattenedItemStatusCollapsed,
@@ -25,7 +27,13 @@ typedef NS_ENUM(NSInteger, MLFlattenedItemType) {
     MLFlattenedItemTypeFooter
 };
 
+@class MLFlattenedItemModel;
+
+typedef void(^MLFlattenedItemStatusDidChangeHandler)(MLFlattenedItemModel *model);
+
 @interface MLFlattenedItemModel : NSObject<IGListDiffable>
+
+@property (nonatomic, nullable, strong) MLFlattenedItemModel *parent;
 
 @property (nonatomic, strong) id<MLListItemProtocol> differableObject;
 
@@ -41,10 +49,15 @@ typedef NS_ENUM(NSInteger, MLFlattenedItemType) {
 
 @property (nonatomic, assign) MLFlattenedItemStatus status;
 
+@property (nonatomic, nullable, copy) MLFlattenedItemStatusDidChangeHandler statusDidChangeHandler;
+
 - (instancetype)initWithDifferableObject:(id<MLListItemProtocol>)object
+                                  parent:(nullable MLFlattenedItemModel *)parent
                                    level:(NSInteger)level
                                     type:(MLFlattenedItemType)type;
 
 @end
+
+NS_ASSUME_NONNULL_END
 
 #endif /* MLFlattenedItemModel_h */

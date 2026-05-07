@@ -9,15 +9,14 @@
 
 #import "MLFlattenedItemModel.h"
 #import "MLListFlattenService.h"
+#import "MLListFlattenParams.h"
 #import "MLListManagerDataSource.h"
 #import "MLFlattenedItemSectionController.h"
 #import "MLFlattenedItemSectionControllerDelegate.h"
 
 @interface MLListManager() <IGListAdapterDataSource, MLFlattenedItemSectionControllerDelegate>
 
-@property (nonatomic, nullable, strong) NSArray<MLFlattenedItemModel *> *visibleItems;
-
-@property (nonatomic, nullable, strong) MLListFlattenService *flattenService;
+@property (nonatomic, nullable, strong, readonly) NSArray<MLFlattenedItemModel *> *visibleItems;
 
 @end
 
@@ -27,9 +26,29 @@
     if (self = [super init]) {
         _adapter = adapter;
         _adapter.dataSource = self;
-        _flattenService = [[MLListFlattenService alloc] init];
+        [self setupFlattenService];
     }
     return self;
+}
+
+- (instancetype)initWithAdapter:(IGListAdapter *)adapter flattenServiceParams:(MLListFlattenParams *)params {
+    if (self = [[MLListManager alloc] initWithAdapter:adapter]) {
+        _flattenService.params = params;
+    }
+    return self;
+}
+
+- (void)setupFlattenService {
+    _flattenService = [[MLListFlattenService alloc] init];
+    _flattenService.params = [[MLListFlattenParams alloc] init];
+    _flattenService.rootItems = [[self.dataSource objectsForMLListManager:self] copy];
+    [self setupFlattenServiceStatusDidChangeHandler];
+}
+
+#pragma mark - Getter
+
+- (NSArray<MLFlattenedItemModel *> *)visibleItems {
+    return self.flattenService.visibleItems;
 }
 
 #pragma mark - IGListAdapterDataSource
@@ -90,7 +109,7 @@
 
 - (void)performUpdatesAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion {
     self.flattenService.rootItems = [[self.dataSource objectsForMLListManager:self] copy];
-    [self reloadVisibleItemsAnimated:animated completion:completion];
+    [self.adapter performUpdatesAnimated:animated completion:completion];
 }
 
 - (void)reloadObjects:(NSArray *)objects {
@@ -99,8 +118,42 @@
 
 #pragma mark - Private
 
-- (void)reloadVisibleItemsAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion {
-    self.visibleItems = [self.flattenService getVisibleItems];
+- (void)setupFlattenServiceStatusDidChangeHandler {
+    __weak typeof(self) weakSelf = self;
+    self.flattenService.statusDidChangeHandler = ^(MLFlattenedItemModel *changedModel) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) {
+            return;
+        }
+        
+        if ([NSThread isMainThread]) {
+            [strongSelf reloadObjects:@[changedModel]];
+        } else {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [strongSelf reloadObjects:@[changedModel]];
+            });
+        }
+    };
+}
+    
+- (void)appendFlattenItemsWithModel:(MLFlattenedItemModel *)model
+                           animated:(BOOL)animated
+                         completion:(IGListUpdaterCompletion)completion {
+    [self.flattenService appendVisibleChildenItemsForRootModel:model];
+    [self.adapter performUpdatesAnimated:animated completion:completion];
+}
+
+- (void)deleteFlattenItemsWithModel:(MLFlattenedItemModel *)model
+                            animated:(BOOL)animated
+                          completion:(IGListUpdaterCompletion)completion {
+    [self.flattenService deleteVisibleChildenItemsForRootModel:model];
+    [self.adapter performUpdatesAnimated:animated completion:completion];
+}
+
+- (void)collapseFlattenItemsWithModel:(MLFlattenedItemModel *)model
+                              animated:(BOOL)animated
+                            completion:(IGListUpdaterCompletion)completion {
+    [self.flattenService collapseVisibleChildenItemsForRootModel:model];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
 
