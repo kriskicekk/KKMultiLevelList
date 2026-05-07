@@ -8,6 +8,10 @@
 #ifndef MLManagerDelegate_h
 #define MLManagerDelegate_h
 
+#import <UIKit/UIKit.h>
+
+NS_ASSUME_NONNULL_BEGIN
+
 @class MLFlattenedItemSectionController;
 @class MLFlattenedItemModel;
 
@@ -15,33 +19,35 @@
 
 @required
 
-- (nullable __kindof UICollectionViewCell *)flattenedItemSectionController:(MLFlattenedItemSectionController *_Nonnull)sectionController
+- (__kindof UICollectionViewCell *)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController
                                                         cellForItemAtIndex:(NSInteger)index
-                                                             withItemModel:(MLFlattenedItemModel *_Nullable)model;
+                                                             withItemModel:(MLFlattenedItemModel *)model;
 
-- (nullable __kindof UICollectionViewCell *)flattenedItemSectionController:(MLFlattenedItemSectionController *_Nonnull)sectionController
+- (__kindof UICollectionViewCell *)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController
                                                         footerForItemAtIndex:(NSInteger)index
-                                                             withItemModel:(MLFlattenedItemModel *_Nullable)model;
+                                                             withItemModel:(MLFlattenedItemModel *)model;
 
-- (CGSize)flattenedItemSectionController:(MLFlattenedItemSectionController *_Nullable)sectionController
+- (CGSize)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController
              cellSizeForItemAtIndex:(NSInteger)index
-                           withItemModel:(MLFlattenedItemModel *_Nonnull)model;
+                           withItemModel:(MLFlattenedItemModel *)model;
 
-- (CGSize)flattenedItemSectionController:(MLFlattenedItemSectionController *_Nullable)sectionController
+- (CGSize)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController
              footerSizeForItemAtIndex:(NSInteger)index
-                           withItemModel:(MLFlattenedItemModel *_Nonnull)model;
+                           withItemModel:(MLFlattenedItemModel *)model;
 
-- (void)flattenedItemSectionController:(MLFlattenedItemSectionController *_Nullable)sectionController
-                didSelectCellAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *_Nonnull)model;
+- (void)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController
+                didSelectCellAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model;
 
-- (void)flattenedItemSectionController:(MLFlattenedItemSectionController *_Nullable)sectionController
-            didSelectFooterAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *_Nonnull)model;
+- (void)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController
+            didSelectFooterAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model;
 
 @optional
 
-- (UIEdgeInsets)flattenedItemSectionController:(MLFlattenedItemSectionController *_Nullable)sectionController
-                        insetForItemModel:(MLFlattenedItemModel *_Nonnull)model;
+- (UIEdgeInsets)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController
+                        insetForItemModel:(MLFlattenedItemModel *)model;
 
 @end
+
+NS_ASSUME_NONNULL_END
 
 #endif /* MLManagerDelegate_h */

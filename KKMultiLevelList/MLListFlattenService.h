@@ -30,8 +30,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)collapseVisibleChildenItemsForRootModel:(MLFlattenedItemModel *)model;
 
-NS_ASSUME_NONNULL_END
-
 @end
+
+NS_ASSUME_NONNULL_END
 
 #endif /* MLListFlattenService_h */

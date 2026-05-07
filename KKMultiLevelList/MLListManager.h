@@ -32,7 +32,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)performUpdatesAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion;
 
-- (void)reloadObjects:(NSArray *)objects;
+- (void)reloadObjects:(NSArray<id<IGListDiffable>> *)objects;
 
 - (void)appendFlattenItemsWithModel:(MLFlattenedItemModel *)model
                                    animated:(BOOL)animated

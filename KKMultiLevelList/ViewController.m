@@ -378,15 +378,12 @@ static NSInteger const kDemoExpandItemsPerStep = 3;
     
     if (model.status == MLFlattenedItemStatusCollapsed || model.status == MLFlattenedItemStatusPartiallyExpanded) {
         model.status = MLFlattenedItemStatusLoading;
-        [self.listManager reloadObjects:@[model]];
-        
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [self.listManager appendFlattenItemsWithModel:model animated:YES completion:nil];
         });
         return;
     } else if (model.status == MLFlattenedItemStatusFullyExpanded) {
         model.status = MLFlattenedItemStatusCollapsing;
-        [self.listManager reloadObjects:@[model]];
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [self.listManager collapseFlattenItemsWithModel:model animated:YES completion:nil];
         });

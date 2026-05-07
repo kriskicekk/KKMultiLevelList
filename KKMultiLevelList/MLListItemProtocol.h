@@ -10,6 +10,8 @@
 
 #import <IGListKit/IGListKit.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @protocol MLListItemProtocol <IGListDiffable>
 
 @property (nonatomic, nullable, strong) NSMutableArray<id<MLListItemProtocol>> *children;
@@ -20,5 +22,6 @@
 
 @end
 
+NS_ASSUME_NONNULL_END
 
 #endif /* MLListItemProtocol_h */

@@ -83,7 +83,9 @@
     return [self.differableObject isEqualToDiffableObject:model.differableObject]
         && model.type == self.type
         && model.level == self.level
-        && model.status == self.status;
+        && model.status == self.status
+        && model.visibleChildrenCount == self.visibleChildrenCount
+        && model.totalChildrenCount == self.totalChildrenCount;
 }
 
 @end

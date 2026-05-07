@@ -41,7 +41,6 @@
 - (void)setupFlattenService {
     _flattenService = [[MLListFlattenService alloc] init];
     _flattenService.params = [[MLListFlattenParams alloc] init];
-    _flattenService.rootItems = [[self.dataSource objectsForMLListManager:self] copy];
     [self setupFlattenServiceStatusDidChangeHandler];
 }
 
@@ -63,8 +62,8 @@
     return sectionController;
 }
 
-- (nonnull NSArray<id<IGListDiffable>> *)objectsForListAdapter:(nonnull IGListAdapter *)listAdapter { 
-    return self.visibleItems;
+- (nonnull NSArray<id<IGListDiffable>> *)objectsForListAdapter:(nonnull IGListAdapter *)listAdapter {
+    return self.visibleItems ?: @[];
 }
 
 #pragma mark - MLFlattenedItemSectionControllerDelegate
@@ -108,11 +107,13 @@
 #pragma mark - Perform Update
 
 - (void)performUpdatesAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion {
-    self.flattenService.rootItems = [[self.dataSource objectsForMLListManager:self] copy];
+    NSAssert(self.dataSource != nil, @"MLListManager dataSource must be set before performing updates.");
+    NSArray<id<MLListItemProtocol>> *objects = [self.dataSource objectsForMLListManager:self] ?: @[];
+    self.flattenService.rootItems = [objects copy];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
 
-- (void)reloadObjects:(NSArray *)objects {
+- (void)reloadObjects:(NSArray<id<IGListDiffable>> *)objects {
     [self.adapter reloadObjects:objects];
 }
 
@@ -126,14 +127,30 @@
             return;
         }
         
+        dispatch_block_t reloadBlock = ^{
+            MLFlattenedItemModel *currentModel = [strongSelf currentVisibleModelMatchingModel:changedModel];
+            if (currentModel != nil) {
+                [strongSelf reloadObjects:@[currentModel]];
+            }
+        };
+        
         if ([NSThread isMainThread]) {
-            [strongSelf reloadObjects:@[changedModel]];
+            reloadBlock();
         } else {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [strongSelf reloadObjects:@[changedModel]];
-            });
+            dispatch_async(dispatch_get_main_queue(), reloadBlock);
         }
     };
+}
+
+- (nullable MLFlattenedItemModel *)currentVisibleModelMatchingModel:(MLFlattenedItemModel *)model {
+    for (MLFlattenedItemModel *visibleModel in self.visibleItems) {
+        BOOL sameObject = visibleModel.differableObject == model.differableObject;
+        BOOL sameType = visibleModel.type == model.type;
+        if (sameObject && sameType) {
+            return visibleModel;
+        }
+    }
+    return nil;
 }
     
 - (void)appendFlattenItemsWithModel:(MLFlattenedItemModel *)model

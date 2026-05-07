@@ -35,7 +35,7 @@
     }
     MLDemoListItem *item = (MLDemoListItem *)object;
     return [self.itemId isEqualToString:item.itemId]
-        & self.children.count == item.children.count
+        && self.children.count == item.children.count
         && self.visibleChildrenCount == item.visibleChildrenCount
         && self.totalChildrenCount == item.totalChildrenCount;
 }

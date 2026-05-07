@@ -122,6 +122,7 @@
     }
     
     MLFlattenedItemModel *oldModel = visibleItems[index];
+    oldModel.statusDidChangeHandler = nil;
     MLFlattenedItemModel *newModel = [self flattenedItemModelWithObject:object
                                                                   parent:oldModel.parent
                                                                    level:oldModel.level
@@ -137,6 +138,8 @@
         return;
     }
     
+    MLFlattenedItemModel *model = visibleItems[index];
+    model.statusDidChangeHandler = nil;
     [visibleItems removeObjectAtIndex:index];
 }
 
