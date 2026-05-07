@@ -143,9 +143,20 @@
     [visibleItems removeObjectAtIndex:index];
 }
 
+- (void)insertFlattenedItems:(NSArray<MLFlattenedItemModel *> *)flattenedItems
+                     atIndex:(NSUInteger)index
+             intoVisibleItems:(NSMutableArray<MLFlattenedItemModel *> *)visibleItems {
+    if (flattenedItems.count == 0 || index > visibleItems.count) {
+        return;
+    }
+    
+    NSIndexSet *insertIndexes = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(index, flattenedItems.count)];
+    [visibleItems insertObjects:flattenedItems atIndexes:insertIndexes];
+}
+
 #pragma mark - Action
 
-- (void)appendVisibleChildenItemsForRootModel:(MLFlattenedItemModel *)model {
+- (void)appendVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model {
     if (model == nil) {
         return;
     }
@@ -190,7 +201,134 @@
     _visibleItems = [visibleItems copy];
 }
 
-- (void)deleteVisibleChildenItemsForRootModel:(MLFlattenedItemModel *)model {
+- (void)insertRootItem:(id<MLListItemProtocol>)item
+               atIndex:(NSUInteger)index {
+    if (item == nil) {
+        return;
+    }
+    [self insertRootItems:@[item] atIndex:index];
+}
+
+- (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
+                atIndex:(NSUInteger)index {
+    if (items.count == 0) {
+        return;
+    }
+    
+    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
+    NSArray<id<MLListItemProtocol>> *oldRootItems = self.rootItems ?: @[];
+    NSUInteger insertIndex = MIN(index, oldRootItems.count);
+    NSUInteger visibleInsertIndex = visibleItems.count;
+    if (insertIndex < oldRootItems.count) {
+        NSInteger nextVisibleIndex = [self visibleIndexForObject:oldRootItems[insertIndex] type:MLFlattenedItemTypeNormal inVisibleItems:visibleItems];
+        if (nextVisibleIndex != NSNotFound) {
+            visibleInsertIndex = nextVisibleIndex;
+        }
+    }
+    
+    NSMutableArray<id<MLListItemProtocol>> *rootItems = [oldRootItems mutableCopy];
+    NSIndexSet *rootInsertIndexes = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(insertIndex, items.count)];
+    [rootItems insertObjects:items atIndexes:rootInsertIndexes];
+    _rootItems = [rootItems copy];
+    
+    NSMutableArray<MLFlattenedItemModel *> *newFlattenedItems = [NSMutableArray array];
+    for (id<MLListItemProtocol> item in items) {
+        [self appendVisibleItemsForObject:item parent:nil level:0 toArray:newFlattenedItems];
+    }
+    [self insertFlattenedItems:newFlattenedItems atIndex:visibleInsertIndex intoVisibleItems:visibleItems];
+    _visibleItems = [visibleItems copy];
+}
+
+- (void)insertRootItem:(id<MLListItemProtocol>)item
+              position:(MLListInsertPosition)position {
+    if (item == nil) {
+        return;
+    }
+    [self insertRootItems:@[item] position:position];
+}
+
+- (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
+               position:(MLListInsertPosition)position {
+    NSArray<id<MLListItemProtocol>> *oldRootItems = self.rootItems ?: @[];
+    NSUInteger insertIndex = position == MLListInsertPositionFirst ? 0 : oldRootItems.count;
+    [self insertRootItems:items atIndex:insertIndex];
+}
+
+- (void)insertItem:(id<MLListItemProtocol>)item
+      toParentItem:(nullable id<MLListItemProtocol>)parentItem
+          position:(MLListInsertPosition)position {
+    if (item == nil) {
+        return;
+    }
+    [self insertItems:@[item] toParentItem:parentItem position:position];
+}
+
+- (void)insertItems:(NSArray<id<MLListItemProtocol>> *)items
+        toParentItem:(nullable id<MLListItemProtocol>)parentItem
+            position:(MLListInsertPosition)position {
+    if (items.count == 0) {
+        return;
+    }
+    if (parentItem == nil) {
+        [self insertRootItems:items position:position];
+        return;
+    }
+    
+    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
+    NSInteger parentVisibleIndex = [self visibleIndexForObject:parentItem type:MLFlattenedItemTypeNormal inVisibleItems:visibleItems];
+    if (parentVisibleIndex == NSNotFound) {
+        return;
+    }
+    MLFlattenedItemModel *parentVisibleModel = visibleItems[parentVisibleIndex];
+    
+    NSMutableArray<id<MLListItemProtocol>> *children = parentItem.children ?: [NSMutableArray array];
+    NSArray<id<MLListItemProtocol>> *oldChildren = [children copy];
+    NSInteger oldVisibleChildrenCount = MIN(MAX(parentItem.visibleChildrenCount, 0), oldChildren.count);
+    NSUInteger insertIndex = position == MLListInsertPositionFirst ? 0 : (NSUInteger)oldVisibleChildrenCount;
+    insertIndex = MIN(insertIndex, oldChildren.count);
+    
+    NSIndexSet *childInsertIndexes = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(insertIndex, items.count)];
+    [children insertObjects:items atIndexes:childInsertIndexes];
+    parentItem.children = children;
+    parentItem.totalChildrenCount = MAX(parentItem.totalChildrenCount + (NSInteger)items.count, parentItem.children.count);
+    parentItem.visibleChildrenCount = oldVisibleChildrenCount + (NSInteger)items.count;
+    parentItem.visibleChildrenCount = MIN(parentItem.visibleChildrenCount, parentItem.children.count);
+    
+    NSUInteger visibleInsertIndex = visibleItems.count;
+    if (position == MLListInsertPositionFirst && oldVisibleChildrenCount > 0 && oldChildren.count > 0) {
+        NSInteger firstVisibleChildIndex = [self visibleIndexForObject:oldChildren[0] type:MLFlattenedItemTypeNormal inVisibleItems:visibleItems];
+        if (firstVisibleChildIndex != NSNotFound) {
+            visibleInsertIndex = firstVisibleChildIndex;
+        }
+    } else if (insertIndex < oldVisibleChildrenCount && insertIndex < oldChildren.count) {
+        NSInteger nextVisibleIndex = [self visibleIndexForObject:oldChildren[insertIndex] type:MLFlattenedItemTypeNormal inVisibleItems:visibleItems];
+        if (nextVisibleIndex != NSNotFound) {
+            visibleInsertIndex = nextVisibleIndex;
+        }
+    } else {
+        NSInteger footerIndex = [self visibleIndexForObject:parentItem type:MLFlattenedItemTypeFooter inVisibleItems:visibleItems];
+        if (footerIndex != NSNotFound) {
+            visibleInsertIndex = footerIndex;
+        } else {
+            NSRange visibleRange = [self visibleRangeForObject:parentItem inVisibleItems:visibleItems];
+            if (visibleRange.location != NSNotFound) {
+                visibleInsertIndex = visibleRange.location + visibleRange.length;
+            }
+        }
+    }
+    
+    NSMutableArray<MLFlattenedItemModel *> *newFlattenedItems = [NSMutableArray array];
+    for (id<MLListItemProtocol> item in items) {
+        [self appendVisibleItemsForObject:item parent:parentVisibleModel level:parentVisibleModel.level + 1 toArray:newFlattenedItems];
+    }
+    [self insertFlattenedItems:newFlattenedItems atIndex:visibleInsertIndex intoVisibleItems:visibleItems];
+    [self replaceVisibleModelForObject:parentItem type:MLFlattenedItemTypeNormal inVisibleItems:visibleItems];
+    [self replaceVisibleModelForObject:parentItem type:MLFlattenedItemTypeFooter inVisibleItems:visibleItems];
+    
+    _visibleItems = [visibleItems copy];
+}
+
+- (void)deleteVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model {
     if (model == nil) {
         return;
     }
@@ -236,7 +374,7 @@
     _visibleItems = [visibleItems copy];
 }
 
-- (void)collapseVisibleChildenItemsForRootModel:(MLFlattenedItemModel *)model {
+- (void)collapseVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model {
     if (model == nil) {
         return;
     }

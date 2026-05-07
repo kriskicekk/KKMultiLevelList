@@ -160,6 +160,56 @@
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
 
+- (void)insertRootItem:(id<MLListItemProtocol>)item
+               atIndex:(NSUInteger)index
+              animated:(BOOL)animated
+            completion:(IGListUpdaterCompletion)completion {
+    [self.flattenService insertRootItem:item atIndex:index];
+    [self.adapter performUpdatesAnimated:animated completion:completion];
+}
+
+- (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
+                atIndex:(NSUInteger)index
+               animated:(BOOL)animated
+             completion:(IGListUpdaterCompletion)completion {
+    [self.flattenService insertRootItems:items atIndex:index];
+    [self.adapter performUpdatesAnimated:animated completion:completion];
+}
+
+- (void)insertRootItem:(id<MLListItemProtocol>)item
+              position:(MLListInsertPosition)position
+              animated:(BOOL)animated
+            completion:(IGListUpdaterCompletion)completion {
+    [self.flattenService insertRootItem:item position:position];
+    [self.adapter performUpdatesAnimated:animated completion:completion];
+}
+
+- (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
+               position:(MLListInsertPosition)position
+               animated:(BOOL)animated
+             completion:(IGListUpdaterCompletion)completion {
+    [self.flattenService insertRootItems:items position:position];
+    [self.adapter performUpdatesAnimated:animated completion:completion];
+}
+
+- (void)insertItem:(id<MLListItemProtocol>)item
+      toParentItem:(nullable id<MLListItemProtocol>)parentItem
+          position:(MLListInsertPosition)position
+          animated:(BOOL)animated
+        completion:(IGListUpdaterCompletion)completion {
+    [self.flattenService insertItem:item toParentItem:parentItem position:position];
+    [self.adapter performUpdatesAnimated:animated completion:completion];
+}
+
+- (void)insertItems:(NSArray<id<MLListItemProtocol>> *)items
+        toParentItem:(nullable id<MLListItemProtocol>)parentItem
+            position:(MLListInsertPosition)position
+            animated:(BOOL)animated
+          completion:(IGListUpdaterCompletion)completion {
+    [self.flattenService insertItems:items toParentItem:parentItem position:position];
+    [self.adapter performUpdatesAnimated:animated completion:completion];
+}
+
 - (void)deleteFlattenItemsWithModel:(MLFlattenedItemModel *)model
                             animated:(BOOL)animated
                           completion:(IGListUpdaterCompletion)completion {

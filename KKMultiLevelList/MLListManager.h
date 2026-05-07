@@ -38,6 +38,38 @@ NS_ASSUME_NONNULL_BEGIN
                                    animated:(BOOL)animated
                                  completion:(nullable IGListUpdaterCompletion)completion;
 
+- (void)insertRootItem:(id<MLListItemProtocol>)item
+               atIndex:(NSUInteger)index
+              animated:(BOOL)animated
+            completion:(nullable IGListUpdaterCompletion)completion;
+
+- (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
+                atIndex:(NSUInteger)index
+               animated:(BOOL)animated
+             completion:(nullable IGListUpdaterCompletion)completion;
+
+- (void)insertRootItem:(id<MLListItemProtocol>)item
+              position:(MLListInsertPosition)position
+              animated:(BOOL)animated
+            completion:(nullable IGListUpdaterCompletion)completion;
+
+- (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
+               position:(MLListInsertPosition)position
+               animated:(BOOL)animated
+             completion:(nullable IGListUpdaterCompletion)completion;
+
+- (void)insertItem:(id<MLListItemProtocol>)item
+      toParentItem:(nullable id<MLListItemProtocol>)parentItem
+          position:(MLListInsertPosition)position
+          animated:(BOOL)animated
+        completion:(nullable IGListUpdaterCompletion)completion;
+
+- (void)insertItems:(NSArray<id<MLListItemProtocol>> *)items
+        toParentItem:(nullable id<MLListItemProtocol>)parentItem
+            position:(MLListInsertPosition)position
+            animated:(BOOL)animated
+          completion:(nullable IGListUpdaterCompletion)completion;
+
 - (void)deleteFlattenItemsWithModel:(MLFlattenedItemModel *)model
                             animated:(BOOL)animated
                           completion:(nullable IGListUpdaterCompletion)completion;

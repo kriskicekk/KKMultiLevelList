@@ -5,22 +5,26 @@ PODS:
   - LookinServer (1.2.8):
     - LookinServer/Core (= 1.2.8)
   - LookinServer/Core (1.2.8)
+  - MJRefresh (3.7.9)
 
 DEPENDENCIES:
   - IGListKit (~> 5.2.0)
   - LookinServer
+  - MJRefresh
 
 SPEC REPOS:
   trunk:
     - IGListDiffKit
     - IGListKit
     - LookinServer
+    - MJRefresh
 
 SPEC CHECKSUMS:
   IGListDiffKit: 33d814e2f318fe75080c527a71bafcc31b6b3abc
   IGListKit: e43679ba92defb48928d3b27765ac87648f06f25
   LookinServer: 1b2b61c6402ae29fa22182d48f5cd067b4e99e80
+  MJRefresh: ff9e531227924c84ce459338414550a05d2aea78
 
-PODFILE CHECKSUM: 1b810748bb15e348a3a94de16c347192662be203
+PODFILE CHECKSUM: 78a9087e946c73d4dca53b6a312b92ff121cc41b
 
 COCOAPODS: 1.16.2

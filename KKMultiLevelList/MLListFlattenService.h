@@ -14,6 +14,11 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+typedef NS_ENUM(NSInteger, MLListInsertPosition) {
+    MLListInsertPositionFirst,
+    MLListInsertPositionLast,
+};
+
 @interface MLListFlattenService : NSObject
 
 @property (nonatomic, nullable, strong) NSArray<id<MLListItemProtocol>> *rootItems;
@@ -24,11 +29,31 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, strong, readonly) NSArray<MLFlattenedItemModel *> *visibleItems;
 
-- (void)appendVisibleChildenItemsForRootModel:(MLFlattenedItemModel *)model;
+- (void)appendVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model;
 
-- (void)deleteVisibleChildenItemsForRootModel:(MLFlattenedItemModel *)model;
+- (void)insertRootItem:(id<MLListItemProtocol>)item
+               atIndex:(NSUInteger)index;
 
-- (void)collapseVisibleChildenItemsForRootModel:(MLFlattenedItemModel *)model;
+- (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
+                atIndex:(NSUInteger)index;
+
+- (void)insertRootItem:(id<MLListItemProtocol>)item
+              position:(MLListInsertPosition)position;
+
+- (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
+               position:(MLListInsertPosition)position;
+
+- (void)insertItem:(id<MLListItemProtocol>)item
+      toParentItem:(nullable id<MLListItemProtocol>)parentItem
+          position:(MLListInsertPosition)position;
+
+- (void)insertItems:(NSArray<id<MLListItemProtocol>> *)items
+        toParentItem:(nullable id<MLListItemProtocol>)parentItem
+            position:(MLListInsertPosition)position;
+
+- (void)deleteVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model;
+
+- (void)collapseVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model;
 
 @end
 

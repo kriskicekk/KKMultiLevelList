@@ -8,6 +8,12 @@
 #import "ViewController.h"
 
 #import <IGListKit/IGListKit.h>
+#if __has_include(<MJRefresh/MJRefresh.h>)
+#import <MJRefresh/MJRefresh.h>
+#define ML_HAS_MJREFRESH 1
+#else
+#define ML_HAS_MJREFRESH 0
+#endif
 
 #import "MLDemoFooterCell.h"
 #import "MLDemoListItem.h"
@@ -17,6 +23,7 @@
 #import "MLListManager.h"
 
 static NSInteger const kDemoExpandItemsPerStep = 3;
+static NSInteger const kDemoLoadMoreItemsPerPage = 5;
 
 @interface ViewController () <MLListDataSource, MLManagerDelegate>
 
@@ -25,11 +32,16 @@ static NSInteger const kDemoExpandItemsPerStep = 3;
 @property (nonatomic, strong) IGListAdapter *adapter;
 @property (nonatomic, strong) MLListManager *listManager;
 @property (nonatomic, strong) NSArray<id<MLListItemProtocol>> *items;
+@property (nonatomic, assign) NSInteger loadMoreItemIndex;
+@property (nonatomic, assign, getter=isLoadingMoreItems) BOOL loadingMoreItems;
 
 - (MLDemoListItem *)nodeWithId:(NSString *)nodeId name:(NSString *)name children:(NSArray<MLDemoListItem *> *)children;
 - (MLDemoListItem *)groupNodeWithId:(NSString *)nodeId name:(NSString *)name leafTitles:(NSArray<NSString *> *)leafTitles;
 - (NSArray<MLDemoListItem *> *)leafNodesWithPrefix:(NSString *)prefix titles:(NSArray<NSString *> *)titles;
 - (void)expandNode:(MLDemoListItem *)node initialVisibleCount:(NSInteger)count;
+- (void)setupLoadMoreFooter;
+- (void)loadMoreRootItem;
+- (MLDemoListItem *)loadMoreDemoItemAtIndex:(NSInteger)index;
 - (void)handleTitleCellLongPress:(UILongPressGestureRecognizer *)gestureRecognizer;
 - (void)presentDeleteConfirmationForModel:(MLFlattenedItemModel *)model;
 
@@ -88,6 +100,7 @@ static NSInteger const kDemoExpandItemsPerStep = 3;
     self.listManager = [[MLListManager alloc] initWithAdapter:self.adapter];
     self.listManager.dataSource = self;
     self.listManager.delegate = self;
+    [self setupLoadMoreFooter];
     self.tipLabel.text = [NSString stringWithFormat:@"MLListManager 示例：当前 footer 每次展开 %ld 项，支持继续展开和收起。", (long)kDemoExpandItemsPerStep];
 }
 
@@ -275,6 +288,71 @@ static NSInteger const kDemoExpandItemsPerStep = 3;
     [self expandNode:projectExample initialVisibleCount:2];
     
     self.items = @[organizationExample, commentExample, projectExample, knowledgeExample, commerceExample];
+}
+
+- (void)setupLoadMoreFooter {
+#if ML_HAS_MJREFRESH
+    __weak typeof(self) weakSelf = self;
+    MJRefreshAutoNormalFooter *footer = [MJRefreshAutoNormalFooter footerWithRefreshingBlock:^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) {
+            return;
+        }
+        [strongSelf loadMoreRootItem];
+    }];
+    [footer setTitle:@"上拉加载更多" forState:MJRefreshStateIdle];
+    [footer setTitle:@"松开加载更多" forState:MJRefreshStatePulling];
+    [footer setTitle:@"正在加载..." forState:MJRefreshStateRefreshing];
+    self.collectionView.mj_footer = footer;
+#endif
+}
+
+- (void)loadMoreRootItem {
+    if (self.isLoadingMoreItems) {
+        return;
+    }
+    
+    self.loadingMoreItems = YES;
+    NSInteger startIndex = self.loadMoreItemIndex + 1;
+    __weak typeof(self) weakSelf = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.45 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) {
+            return;
+        }
+        
+        NSMutableArray<id<MLListItemProtocol>> *loadedItems = [NSMutableArray arrayWithCapacity:kDemoLoadMoreItemsPerPage];
+        for (NSInteger offset = 0; offset < kDemoLoadMoreItemsPerPage; offset++) {
+            NSInteger itemIndex = startIndex + offset;
+            [loadedItems addObject:[strongSelf loadMoreDemoItemAtIndex:itemIndex]];
+        }
+        
+        NSMutableArray<id<MLListItemProtocol>> *items = [strongSelf.items mutableCopy] ?: [NSMutableArray array];
+        [items addObjectsFromArray:loadedItems];
+        strongSelf.items = [items copy];
+        strongSelf.loadMoreItemIndex = startIndex + kDemoLoadMoreItemsPerPage - 1;
+        strongSelf.tipLabel.text = [NSString stringWithFormat:@"已加载更多：动态分组 %ld-%ld。", (long)startIndex, (long)strongSelf.loadMoreItemIndex];
+        [strongSelf.listManager insertRootItems:loadedItems position:MLListInsertPositionLast animated:YES completion:nil];
+        strongSelf.loadingMoreItems = NO;
+#if ML_HAS_MJREFRESH
+        [strongSelf.collectionView.mj_footer endRefreshing];
+#endif
+    });
+}
+
+- (MLDemoListItem *)loadMoreDemoItemAtIndex:(NSInteger)index {
+    NSString *nodeId = [NSString stringWithFormat:@"load-more-%ld", (long)index];
+    NSString *name = [NSString stringWithFormat:@"动态加载分组 %ld", (long)index];
+    MLDemoListItem *item = [self groupNodeWithId:nodeId
+                                           name:name
+                                     leafTitles:@[
+        [NSString stringWithFormat:@"新增条目 %ld-1", (long)index],
+        [NSString stringWithFormat:@"新增条目 %ld-2", (long)index],
+        [NSString stringWithFormat:@"新增条目 %ld-3", (long)index],
+        [NSString stringWithFormat:@"新增条目 %ld-4", (long)index]
+    ]];
+    [self expandNode:item initialVisibleCount:MIN(kDemoExpandItemsPerStep, item.children.count)];
+    return item;
 }
 
 - (MLDemoListItem *)nodeWithId:(NSString *)nodeId name:(NSString *)name children:(NSArray<MLDemoListItem *> *)children {

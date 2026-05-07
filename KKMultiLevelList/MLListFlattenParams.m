@@ -12,7 +12,7 @@
 - (instancetype)init {
     if (self = [super init]) {
         _expandBatchCount = 5;
-        _usesFooter = NO;
+        _usesFooter = YES;
     }
     return self;
 }
