@@ -64,9 +64,9 @@ The delegate provides normal cells, footer cells, sizes, selection behavior, and
 ## Project Layout
 
 ```text
-Sources/KKMultiLevelList/      Framework source files
+Sources/KKMultiLevelList/          Framework source files
 Examples/KKMultiLevelListExample/  Demo app source files
-Tests/                         Unit tests
+Tests/                             Unit tests
 ```
 
 ## Example
