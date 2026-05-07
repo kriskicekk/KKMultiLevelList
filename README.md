@@ -73,6 +73,22 @@ Tests/                         Unit tests
 
 Open `KKMultiLevelList.xcworkspace` and run the `KKMultiLevelList` scheme. The app target is a demo that uses the framework source directly from `Sources/KKMultiLevelList`.
 
+### Expand More
+
+![Expand more demo](Docs/Assets/README/expand-more.gif)
+
+### Collapse
+
+![Collapse demo](Docs/Assets/README/collapse.gif)
+
+### Load More
+
+![Load more demo](Docs/Assets/README/load-more.gif)
+
+### Delete
+
+![Delete demo](Docs/Assets/README/delete.gif)
+
 ## License
 
 KKMultiLevelList is available under the MIT license. See `LICENSE` for details.
