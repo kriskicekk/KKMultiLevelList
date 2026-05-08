@@ -17,7 +17,7 @@ batched child reveal, insertion, deletion, and footer state management.
   s.requires_arc = true
 
   s.source_files = 'Sources/KKMultiLevelList/**/*.{h,m}'
-  s.public_header_files = 'Sources/KKMultiLevelList/**/*.h'
+  s.public_header_files = 'Sources/KKMultiLevelList/*.h'
 
   s.dependency 'IGListKit', '~> 5.2.0'
 end

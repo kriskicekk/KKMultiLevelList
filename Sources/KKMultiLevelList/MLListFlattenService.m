@@ -7,6 +7,8 @@
 
 #import "MLListFlattenService.h"
 
+#import "Internal/MLFlattenedItemModelInternal.h"
+
 @implementation MLListFlattenService
 
 - (instancetype)init {

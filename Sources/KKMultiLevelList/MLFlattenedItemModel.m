@@ -5,7 +5,7 @@
 //  Created by kris cheng on 2026/4/26.
 //
 
-#import "MLFlattenedItemModel.h"
+#import "Internal/MLFlattenedItemModelInternal.h"
 #import "MLListItemProtocol.h"
 
 @implementation MLFlattenedItemModel

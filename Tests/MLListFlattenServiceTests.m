@@ -1,6 +1,6 @@
 #import <XCTest/XCTest.h>
 
-#import "MLFlattenedItemModel.h"
+#import "Internal/MLFlattenedItemModelInternal.h"
 #import "MLListFlattenService.h"
 
 @interface MLTestItem : NSObject <MLListItemProtocol>

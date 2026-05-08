@@ -54,6 +54,9 @@ typedef void(^MLFlattenedItemStatusDidChangeHandler)(MLFlattenedItemModel *model
 /// can diff UI-facing state independently from the business model object.
 @interface MLFlattenedItemModel : NSObject<IGListDiffable>
 
+- (instancetype)init NS_UNAVAILABLE;
++ (instancetype)new NS_UNAVAILABLE;
+
 /// Parent flattened normal row. Root rows have no parent.
 @property (nonatomic, nullable, strong) MLFlattenedItemModel *parent;
 
@@ -77,23 +80,9 @@ typedef void(^MLFlattenedItemStatusDidChangeHandler)(MLFlattenedItemModel *model
 
 /// UI-facing state used by business cells and footer cells.
 ///
-/// Setting this property triggers `statusDidChangeHandler` when the value
-/// actually changes.
+/// Setting this property notifies the list manager when the value actually
+/// changes.
 @property (nonatomic, assign) MLFlattenedItemStatus status;
-
-/// Callback used by the manager to reload this row when only status changes.
-@property (nonatomic, nullable, copy) MLFlattenedItemStatusDidChangeHandler statusDidChangeHandler;
-
-/// Creates a flattened model for a business item.
-///
-/// @param object The business model that conforms to `MLListItemProtocol`.
-/// @param parent The parent flattened normal row, or `nil` for root rows.
-/// @param level The zero-based tree depth.
-/// @param type The row type to generate.
-- (instancetype)initWithDifferableObject:(id<MLListItemProtocol>)object
-                                  parent:(nullable MLFlattenedItemModel *)parent
-                                   level:(NSInteger)level
-                                    type:(MLFlattenedItemType)type;
 
 @end
 
