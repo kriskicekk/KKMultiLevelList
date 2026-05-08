@@ -26,6 +26,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// "load more", "collapse", loading, or retry UI.
 @property (nonatomic, assign) BOOL usesFooter;
 
+/// Whether collapsing a node should also collapse all descendant nodes.
+///
+/// When enabled, expanding the node again shows every descendant from a
+/// collapsed state instead of restoring its previous expanded child range.
+@property (nonatomic, assign) BOOL collapsesDescendantsOnCollapse;
+
 @end
 
 NS_ASSUME_NONNULL_END

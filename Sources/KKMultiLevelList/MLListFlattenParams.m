@@ -13,6 +13,7 @@
     if (self = [super init]) {
         _expandBatchCount = 5;
         _usesFooter = YES;
+        _collapsesDescendantsOnCollapse = NO;
     }
     return self;
 }
@@ -21,6 +22,7 @@
     MLListFlattenParams *params = [[[self class] allocWithZone:zone] init];
     params.expandBatchCount = self.expandBatchCount;
     params.usesFooter = self.usesFooter;
+    params.collapsesDescendantsOnCollapse = self.collapsesDescendantsOnCollapse;
     return params;
 }
 

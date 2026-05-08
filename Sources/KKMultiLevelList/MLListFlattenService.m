@@ -191,6 +191,14 @@
     [visibleItems insertObjects:flattenedItems atIndexes:insertIndexes];
 }
 
+- (void)collapseDescendantsOfObject:(id<MLListItemProtocol>)object {
+    NSParameterAssert(object);
+    for (id<MLListItemProtocol> child in object.children) {
+        child.visibleChildrenCount = 0;
+        [self collapseDescendantsOfObject:child];
+    }
+}
+
 #pragma mark - Action
 
 - (void)appendVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model {
@@ -478,6 +486,9 @@
     }
     
     rootItem.visibleChildrenCount = 0;
+    if (self.params.collapsesDescendantsOnCollapse) {
+        [self collapseDescendantsOfObject:rootItem];
+    }
     [self replaceVisibleModelForObject:rootItem type:MLFlattenedItemTypeCell inVisibleItems:visibleItems];
     [self replaceVisibleModelForObject:rootItem type:MLFlattenedItemTypeFooter inVisibleItems:visibleItems];
     
