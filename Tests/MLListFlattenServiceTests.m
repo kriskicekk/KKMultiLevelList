@@ -66,9 +66,16 @@
 }
 
 - (MLListFlattenService *)serviceWithRootItems:(NSArray<MLTestItem *> *)rootItems usesFooter:(BOOL)usesFooter {
+    return [self serviceWithRootItems:rootItems usesFooter:usesFooter collapsesDescendantsOnCollapse:NO];
+}
+
+- (MLListFlattenService *)serviceWithRootItems:(NSArray<MLTestItem *> *)rootItems
+                                    usesFooter:(BOOL)usesFooter
+                collapsesDescendantsOnCollapse:(BOOL)collapsesDescendantsOnCollapse {
     MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
     params.usesFooter = usesFooter;
     params.expandBatchCount = 2;
+    params.collapsesDescendantsOnCollapse = collapsesDescendantsOnCollapse;
     MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:params];
     service.rootItems = rootItems;
     return service;
@@ -166,6 +173,40 @@
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"root-footer"]));
     XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeFooter].status, MLFlattenedItemStatusCollapsed);
+}
+
+- (void)testCollapseKeepsDescendantExpansionWhenDisabled {
+    MLTestItem *leaf = [self itemWithId:@"leaf"];
+    MLTestItem *child = [self itemWithId:@"child" children:@[leaf] visibleCount:1];
+    MLTestItem *root = [self itemWithId:@"root" children:@[child] visibleCount:1];
+    MLListFlattenService *service = [self serviceWithRootItems:@[root]];
+    
+    [service collapseVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeFooter]];
+    [service appendVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeFooter]];
+    
+    XCTAssertEqual(child.visibleChildrenCount, 1);
+    XCTAssertEqualObjects([self visibleIdentifiersInService:service],
+                          (@[@"root-cell", @"child-cell", @"leaf-cell", @"child-footer", @"root-footer"]));
+    XCTAssertEqual([self modelInService:service item:child type:MLFlattenedItemTypeCell].status, MLFlattenedItemStatusFullyExpanded);
+}
+
+- (void)testCollapseCanCollapseDescendants {
+    MLTestItem *leaf = [self itemWithId:@"leaf"];
+    MLTestItem *grandchild = [self itemWithId:@"grandchild" children:@[leaf] visibleCount:1];
+    MLTestItem *child = [self itemWithId:@"child" children:@[grandchild] visibleCount:1];
+    MLTestItem *root = [self itemWithId:@"root" children:@[child] visibleCount:1];
+    MLListFlattenService *service = [self serviceWithRootItems:@[root]
+                                                    usesFooter:YES
+                                collapsesDescendantsOnCollapse:YES];
+    
+    [service collapseVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeFooter]];
+    [service appendVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeFooter]];
+    
+    XCTAssertEqual(child.visibleChildrenCount, 0);
+    XCTAssertEqual(grandchild.visibleChildrenCount, 0);
+    XCTAssertEqualObjects([self visibleIdentifiersInService:service],
+                          (@[@"root-cell", @"child-cell", @"child-footer", @"root-footer"]));
+    XCTAssertEqual([self modelInService:service item:child type:MLFlattenedItemTypeCell].status, MLFlattenedItemStatusCollapsed);
 }
 
 - (void)testCollapseNilOrCollapsedModelDoesNothing {
@@ -381,28 +422,34 @@
     MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
     params.expandBatchCount = 12;
     params.usesFooter = NO;
+    params.collapsesDescendantsOnCollapse = YES;
     
     MLListFlattenParams *paramsCopy = [params copy];
     params.expandBatchCount = 1;
     params.usesFooter = YES;
+    params.collapsesDescendantsOnCollapse = NO;
     
     XCTAssertNotEqual(paramsCopy, params);
     XCTAssertEqual(paramsCopy.expandBatchCount, 12);
     XCTAssertFalse(paramsCopy.usesFooter);
+    XCTAssertTrue(paramsCopy.collapsesDescendantsOnCollapse);
 }
 
 - (void)testServiceCopiesInjectedFlattenParams {
     MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
     params.expandBatchCount = 3;
     params.usesFooter = NO;
+    params.collapsesDescendantsOnCollapse = YES;
     
     MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:params];
     params.expandBatchCount = 8;
     params.usesFooter = YES;
+    params.collapsesDescendantsOnCollapse = NO;
     
     XCTAssertNotEqual(service.params, params);
     XCTAssertEqual(service.params.expandBatchCount, 3);
     XCTAssertFalse(service.params.usesFooter);
+    XCTAssertTrue(service.params.collapsesDescendantsOnCollapse);
 }
 
 - (void)testStatusDidChangeHandlerIsAppliedToExistingAndNewModels {
