@@ -62,9 +62,14 @@
 }
 
 - (MLListFlattenService *)serviceWithRootItems:(NSArray<MLTestItem *> *)rootItems {
-    MLListFlattenService *service = [[MLListFlattenService alloc] init];
-    service.params.usesFooter = YES;
-    service.params.expandBatchCount = 2;
+    return [self serviceWithRootItems:rootItems usesFooter:YES];
+}
+
+- (MLListFlattenService *)serviceWithRootItems:(NSArray<MLTestItem *> *)rootItems usesFooter:(BOOL)usesFooter {
+    MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
+    params.usesFooter = usesFooter;
+    params.expandBatchCount = 2;
+    MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:params];
     service.rootItems = rootItems;
     return service;
 }
@@ -139,9 +144,7 @@
     MLTestItem *child2 = [self itemWithId:@"child-2"];
     MLTestItem *child3 = [self itemWithId:@"child-3"];
     MLTestItem *root = [self itemWithId:@"root" children:@[child1, child2, child3] visibleCount:0];
-    MLListFlattenService *service = [self serviceWithRootItems:@[root]];
-    service.params.usesFooter = NO;
-    service.rootItems = @[root];
+    MLListFlattenService *service = [self serviceWithRootItems:@[root] usesFooter:NO];
     
     [service appendVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeCell]];
     
@@ -368,13 +371,38 @@
 - (void)testUsesFooterFalseOmitsFooters {
     MLTestItem *child = [self itemWithId:@"child"];
     MLTestItem *root = [self itemWithId:@"root" children:@[child] visibleCount:1];
-    MLListFlattenService *service = [[MLListFlattenService alloc] init];
-    service.params.usesFooter = NO;
-    
-    service.rootItems = @[root];
+    MLListFlattenService *service = [self serviceWithRootItems:@[root] usesFooter:NO];
     
     XCTAssertNil([self modelInService:service item:root type:MLFlattenedItemTypeFooter]);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service], (@[@"root-cell", @"child-cell"]));
+}
+
+- (void)testFlattenParamsCopyPreservesValuesAndSeparatesInstances {
+    MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
+    params.expandBatchCount = 12;
+    params.usesFooter = NO;
+    
+    MLListFlattenParams *paramsCopy = [params copy];
+    params.expandBatchCount = 1;
+    params.usesFooter = YES;
+    
+    XCTAssertNotEqual(paramsCopy, params);
+    XCTAssertEqual(paramsCopy.expandBatchCount, 12);
+    XCTAssertFalse(paramsCopy.usesFooter);
+}
+
+- (void)testServiceCopiesInjectedFlattenParams {
+    MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
+    params.expandBatchCount = 3;
+    params.usesFooter = NO;
+    
+    MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:params];
+    params.expandBatchCount = 8;
+    params.usesFooter = YES;
+    
+    XCTAssertNotEqual(service.params, params);
+    XCTAssertEqual(service.params.expandBatchCount, 3);
+    XCTAssertFalse(service.params.usesFooter);
 }
 
 - (void)testStatusDidChangeHandlerIsAppliedToExistingAndNewModels {

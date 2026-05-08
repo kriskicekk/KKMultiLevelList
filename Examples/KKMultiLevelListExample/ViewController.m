@@ -440,7 +440,7 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
     MLDemoListItem *item = (MLDemoListItem *)model.differableObject;
     self.tipLabel.text = [NSString stringWithFormat:@"点击节点：%@，当前层级：%ld。", item.title, (long)model.level + 1];
     
-    if (!self.listManager.flattenService.params.usesFooter && model.totalChildrenCount > 0) {
+    if (!self.listManager.usesFooter && model.totalChildrenCount > 0) {
         if (model.status == MLFlattenedItemStatusCollapsed || model.status == MLFlattenedItemStatusPartiallyExpanded) {
             [self.listManager appendFlattenItemsWithModel:model animated:YES completion:nil];
         } else if (model.status == MLFlattenedItemStatusFullyExpanded) {

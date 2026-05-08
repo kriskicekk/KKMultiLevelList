@@ -35,7 +35,7 @@ typedef NS_ENUM(NSInteger, MLListInsertPosition) {
 @property (nonatomic, nullable, strong) NSArray<id<MLListItemProtocol>> *rootItems;
 
 /// Flattening configuration.
-@property (nonatomic, strong) MLListFlattenParams *params;
+@property (nonatomic, copy, readonly) MLListFlattenParams *params;
 
 /// Callback assigned to generated flattened models.
 ///
@@ -45,6 +45,12 @@ typedef NS_ENUM(NSInteger, MLListInsertPosition) {
 
 /// Current flat list consumed by IGListKit.
 @property (nonatomic, strong, readonly) NSArray<MLFlattenedItemModel *> *visibleItems;
+
+/// Creates a flatten service with optional custom configuration.
+- (instancetype)initWithParams:(nullable MLListFlattenParams *)params NS_DESIGNATED_INITIALIZER;
+
+/// Creates a flatten service with default configuration.
+- (instancetype)init;
 
 /// Expands the backing item of `model` by one batch.
 ///

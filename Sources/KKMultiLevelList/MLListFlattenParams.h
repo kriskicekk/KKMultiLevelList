@@ -13,7 +13,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /// Configuration used when converting tree data into flat list data.
-@interface MLListFlattenParams : NSObject
+@interface MLListFlattenParams : NSObject <NSCopying>
 
 /// Number of additional children revealed by one expand action.
 ///

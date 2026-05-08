@@ -36,11 +36,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// Service that owns the current tree-to-flat projection.
 @property (nonatomic, strong, readonly) MLListFlattenService *flattenService;
 
+/// Whether child expansion controls are rendered as footer rows.
+@property (nonatomic, assign, readonly) BOOL usesFooter;
+
 /// Creates a manager with an existing IGListKit adapter.
 - (instancetype)initWithAdapter:(IGListAdapter *)adapter;
 
 /// Creates a manager with custom flattening configuration.
-- (instancetype)initWithAdapter:(IGListAdapter *)adapter flattenServiceParams:(MLListFlattenParams *)params;
+- (instancetype)initWithAdapter:(IGListAdapter *)adapter flattenServiceParams:(nullable MLListFlattenParams *)params;
 
 /// Reloads root items from `dataSource` and performs an IGListKit diff update.
 - (void)performUpdatesAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion;

@@ -23,26 +23,21 @@
 @implementation MLListManager
 
 - (instancetype)initWithAdapter:(IGListAdapter *)adapter {
+    return [self initWithAdapter:adapter flattenServiceParams:nil];
+}
+
+- (instancetype)initWithAdapter:(IGListAdapter *)adapter flattenServiceParams:(nullable MLListFlattenParams *)params {
     NSParameterAssert(adapter);
     if (self = [super init]) {
         _adapter = adapter;
         _adapter.dataSource = self;
-        [self setupFlattenService];
+        [self setupFlattenServiceWithParams:params];
     }
     return self;
 }
 
-- (instancetype)initWithAdapter:(IGListAdapter *)adapter flattenServiceParams:(MLListFlattenParams *)params {
-    NSParameterAssert(params);
-    if (self = [[MLListManager alloc] initWithAdapter:adapter]) {
-        _flattenService.params = params;
-    }
-    return self;
-}
-
-- (void)setupFlattenService {
-    _flattenService = [[MLListFlattenService alloc] init];
-    _flattenService.params = [[MLListFlattenParams alloc] init];
+- (void)setupFlattenServiceWithParams:(nullable MLListFlattenParams *)params {
+    _flattenService = [[MLListFlattenService alloc] initWithParams:params];
     [self setupFlattenServiceStatusDidChangeHandler];
 }
 
@@ -50,6 +45,10 @@
 
 - (NSArray<MLFlattenedItemModel *> *)visibleItems {
     return self.flattenService.visibleItems;
+}
+
+- (BOOL)usesFooter {
+    return self.flattenService.params.usesFooter;
 }
 
 #pragma mark - IGListAdapterDataSource

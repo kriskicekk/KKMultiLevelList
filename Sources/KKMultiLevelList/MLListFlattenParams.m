@@ -17,4 +17,11 @@
     return self;
 }
 
+- (id)copyWithZone:(NSZone *)zone {
+    MLListFlattenParams *params = [[[self class] allocWithZone:zone] init];
+    params.expandBatchCount = self.expandBatchCount;
+    params.usesFooter = self.usesFooter;
+    return params;
+}
+
 @end

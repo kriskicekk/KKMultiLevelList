@@ -10,8 +10,12 @@
 @implementation MLListFlattenService
 
 - (instancetype)init {
+    return [self initWithParams:nil];
+}
+
+- (instancetype)initWithParams:(nullable MLListFlattenParams *)params {
     if (self = [super init]) {
-        _params = [[MLListFlattenParams alloc] init];
+        _params = [params copy] ?: [[MLListFlattenParams alloc] init];
     }
     return self;
 }
