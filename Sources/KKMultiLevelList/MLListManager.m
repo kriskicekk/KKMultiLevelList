@@ -77,7 +77,7 @@
     // Keep framework UI-free by forwarding normal rows and footer rows to the
     // business delegate.
     NSAssert(self.delegate != nil, @"MLListManager delegate must be set before rendering cells.");
-    if (model.type == MLFlattenedItemTypeNormal && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:cellForItemAtIndex:withItemModel:)]) {
+    if (model.type == MLFlattenedItemTypeCell && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:cellForItemAtIndex:withItemModel:)]) {
         return [self.delegate flattenedItemSectionController:sectionController cellForItemAtIndex:index withItemModel:model];
     } else if (model.type == MLFlattenedItemTypeFooter && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:footerForItemAtIndex:withItemModel:)]) {
         return [self.delegate flattenedItemSectionController:sectionController footerForItemAtIndex:index withItemModel:model];
@@ -88,7 +88,7 @@
 
 - (CGSize)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController sizeForItemAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model {
     NSAssert(self.delegate != nil, @"MLListManager delegate must be set before measuring cells.");
-    if (model.type == MLFlattenedItemTypeNormal && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:cellSizeForItemAtIndex:withItemModel:)]) {
+    if (model.type == MLFlattenedItemTypeCell && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:cellSizeForItemAtIndex:withItemModel:)]) {
         return [self.delegate flattenedItemSectionController:sectionController cellSizeForItemAtIndex:index withItemModel:model];
     } else if (model.type == MLFlattenedItemTypeFooter && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:footerSizeForItemAtIndex:withItemModel:)]) {
         return [self.delegate flattenedItemSectionController:sectionController footerSizeForItemAtIndex:index withItemModel:model];
@@ -99,7 +99,7 @@
 
 - (void)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController didSelectAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model {
     NSAssert(self.delegate != nil, @"MLListManager delegate must be set before handling selection.");
-    if (model.type == MLFlattenedItemTypeNormal && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:didSelectCellAtIndex:withItemModel:)]) {
+    if (model.type == MLFlattenedItemTypeCell && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:didSelectCellAtIndex:withItemModel:)]) {
         [self.delegate flattenedItemSectionController:sectionController didSelectCellAtIndex:index withItemModel:model];
     } else if (model.type == MLFlattenedItemTypeFooter && [self.delegate respondsToSelector:@selector(flattenedItemSectionController:didSelectFooterAtIndex:withItemModel:)]) {
         [self.delegate flattenedItemSectionController:sectionController didSelectFooterAtIndex:index withItemModel:model];

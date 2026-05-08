@@ -99,7 +99,7 @@
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"child-1-cell", @"root-footer"]));
     
-    MLFlattenedItemModel *rootModel = [self modelInService:service item:root type:MLFlattenedItemTypeNormal];
+    MLFlattenedItemModel *rootModel = [self modelInService:service item:root type:MLFlattenedItemTypeCell];
     MLFlattenedItemModel *footerModel = [self modelInService:service item:root type:MLFlattenedItemTypeFooter];
     XCTAssertEqual(rootModel.status, MLFlattenedItemStatusPartiallyExpanded);
     XCTAssertEqual(footerModel.remainingChildrenCount, 1);
@@ -143,7 +143,7 @@
     service.params.usesFooter = NO;
     service.rootItems = @[root];
     
-    [service appendVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeNormal]];
+    [service appendVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeCell]];
     
     XCTAssertEqual(root.visibleChildrenCount, 3);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
@@ -303,7 +303,7 @@
     MLTestItem *root2 = [self itemWithId:@"root-2"];
     MLListFlattenService *service = [self serviceWithRootItems:@[root1, root2]];
     
-    [service deleteVisibleChildenItemsForRootModel:[self modelInService:service item:root1 type:MLFlattenedItemTypeNormal]];
+    [service deleteVisibleChildenItemsForRootModel:[self modelInService:service item:root1 type:MLFlattenedItemTypeCell]];
     
     XCTAssertEqualObjects(service.rootItems, (@[root2]));
     XCTAssertEqualObjects([self visibleIdentifiersInService:service], (@[@"root-2-cell"]));
@@ -315,7 +315,7 @@
     MLTestItem *root = [self itemWithId:@"root" children:@[child1, child2] visibleCount:2];
     MLListFlattenService *service = [self serviceWithRootItems:@[root]];
     
-    MLFlattenedItemModel *childModel = [self modelInService:service item:child1 type:MLFlattenedItemTypeNormal];
+    MLFlattenedItemModel *childModel = [self modelInService:service item:child1 type:MLFlattenedItemTypeCell];
     [service deleteVisibleChildenItemsForRootModel:childModel];
     
     XCTAssertEqualObjects(root.children, (@[child2]));
@@ -330,7 +330,7 @@
     MLTestItem *root = [self itemWithId:@"root" children:@[child] visibleCount:1];
     MLListFlattenService *service = [self serviceWithRootItems:@[root]];
     
-    [service deleteVisibleChildenItemsForRootModel:[self modelInService:service item:child type:MLFlattenedItemTypeNormal]];
+    [service deleteVisibleChildenItemsForRootModel:[self modelInService:service item:child type:MLFlattenedItemTypeCell]];
     
     XCTAssertEqual(root.children.count, 0);
     XCTAssertEqual(root.totalChildrenCount, 0);
@@ -344,7 +344,7 @@
     MLFlattenedItemModel *outsideModel = [[MLFlattenedItemModel alloc] initWithDifferableObject:outside
                                                                                         parent:nil
                                                                                          level:0
-                                                                                          type:MLFlattenedItemTypeNormal];
+                                                                                          type:MLFlattenedItemTypeCell];
     
     [service deleteVisibleChildenItemsForRootModel:nil];
     [service deleteVisibleChildenItemsForRootModel:outsideModel];
@@ -385,10 +385,10 @@
         callCount++;
     };
     
-    [self modelInService:service item:root type:MLFlattenedItemTypeNormal].status = MLFlattenedItemStatusLoading;
+    [self modelInService:service item:root type:MLFlattenedItemTypeCell].status = MLFlattenedItemStatusLoading;
     MLTestItem *inserted = [self itemWithId:@"inserted"];
     [service insertRootItem:inserted position:MLListInsertPositionLast];
-    [self modelInService:service item:inserted type:MLFlattenedItemTypeNormal].status = MLFlattenedItemStatusLoading;
+    [self modelInService:service item:inserted type:MLFlattenedItemTypeCell].status = MLFlattenedItemStatusLoading;
     
     XCTAssertEqual(callCount, 2);
 }
@@ -398,7 +398,7 @@
     MLFlattenedItemModel *model = [[MLFlattenedItemModel alloc] initWithDifferableObject:root
                                                                                   parent:nil
                                                                                    level:0
-                                                                                    type:MLFlattenedItemTypeNormal];
+                                                                                    type:MLFlattenedItemTypeCell];
     __block NSInteger callCount = 0;
     model.statusDidChangeHandler = ^(__unused MLFlattenedItemModel *changedModel) {
         callCount++;

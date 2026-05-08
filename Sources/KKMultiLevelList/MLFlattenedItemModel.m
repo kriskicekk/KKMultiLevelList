@@ -16,7 +16,7 @@
                                     type:(MLFlattenedItemType)type {
     NSParameterAssert(object);
     NSAssert(level >= 0, @"Flattened item level must be non-negative.");
-    NSAssert(type == MLFlattenedItemTypeNormal || type == MLFlattenedItemTypeFooter, @"Flattened item type is invalid.");
+    NSAssert(type == MLFlattenedItemTypeCell || type == MLFlattenedItemTypeFooter, @"Flattened item type is invalid.");
     NSAssert(object.visibleChildrenCount >= 0, @"visibleChildrenCount must be non-negative.");
     NSAssert(object.totalChildrenCount >= 0, @"totalChildrenCount must be non-negative.");
     if (self = [super init]) {

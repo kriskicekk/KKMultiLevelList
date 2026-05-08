@@ -38,7 +38,7 @@ typedef NS_ENUM(NSInteger, MLFlattenedItemStatus) {
 /// footer generated for that same item.
 typedef NS_ENUM(NSInteger, MLFlattenedItemType) {
     /// A normal row backed by a business model.
-    MLFlattenedItemTypeNormal = 0,
+    MLFlattenedItemTypeCell = 0,
     /// A synthetic footer row backed by the same business model as its parent.
     MLFlattenedItemTypeFooter
 };
