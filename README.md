@@ -75,19 +75,19 @@ Open `KKMultiLevelList.xcworkspace` and run the `KKMultiLevelList` scheme. The a
 
 ### Expand More
 
-![Expand more demo](Docs/Assets/README/expand-more.gif)
+<img src="Docs/Assets/README/expand-more.gif" alt="Expand more demo" width="280">
 
 ### Collapse
 
-![Collapse demo](Docs/Assets/README/collapse.gif)
+<img src="Docs/Assets/README/collapse.gif" alt="Collapse demo" width="280">
 
 ### Load More
 
-![Load more demo](Docs/Assets/README/load-more.gif)
+<img src="Docs/Assets/README/load-more.gif" alt="Load more demo" width="280">
 
 ### Delete
 
-![Delete demo](Docs/Assets/README/delete.gif)
+<img src="Docs/Assets/README/delete.gif" alt="Delete demo" width="280">
 
 ## License
 
