@@ -29,10 +29,12 @@ typedef NS_ENUM(NSInteger, MLListInsertPosition) {
 /// projection when callers expand, collapse, insert, or delete nodes.
 @interface MLListFlattenService : NSObject
 
-/// Root tree items used as the source for flattening.
+/// Mutable root tree items used as the source for flattening.
 ///
-/// Assigning this property rebuilds `visibleItems`.
-@property (nonatomic, nullable, strong) NSArray<id<MLListItemProtocol>> *rootItems;
+/// Assigning this property keeps the same array reference and rebuilds
+/// `visibleItems`. Root mutation APIs modify this array in place so the
+/// business layer and manager stay synchronized.
+@property (nonatomic, nullable, strong) NSMutableArray<id<MLListItemProtocol>> *rootItems;
 
 /// Flattening configuration.
 @property (nonatomic, copy, readonly) MLListFlattenParams *params;

@@ -20,11 +20,12 @@ NS_ASSUME_NONNULL_BEGIN
 /// Returns the view displayed by IGListKit when there are no objects.
 - (nullable UIView *)emptyViewForMLListManager:(MLListManager *)listManager;
 
-/// Returns the current root tree items.
+/// Returns the current mutable root tree items.
 ///
-/// The manager reads this during `performUpdatesAnimated:completion:` and then
-/// asks the flatten service to build visible flattened models.
-- (NSArray<id<MLListItemProtocol>> *)objectsForMLListManager:(MLListManager *)listManager;
+/// The manager keeps this same array reference and mutates it when callers use
+/// root insertion or deletion APIs. Keep structural mutations on the main
+/// thread and avoid mutating the array while IGListKit is performing updates.
+- (NSMutableArray<id<MLListItemProtocol>> *)objectsForMLListManager:(MLListManager *)listManager;
 
 @end
 

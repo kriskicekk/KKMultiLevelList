@@ -30,7 +30,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Business UI delegate. Cells, sizes, insets, and selection handling live here.
 @property (nonatomic, nullable, weak) id<MLManagerDelegate> delegate;
 
-/// Business data source that supplies root tree items.
+/// Business data source that supplies the mutable root tree items.
 @property (nonatomic, nullable, weak) id<MLListDataSource> dataSource;
 
 /// Service that owns the current tree-to-flat projection.
@@ -45,7 +45,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Creates a manager with custom flattening configuration.
 - (instancetype)initWithAdapter:(IGListAdapter *)adapter flattenServiceParams:(nullable MLListFlattenParams *)params;
 
-/// Reloads root items from `dataSource` and performs an IGListKit diff update.
+/// Reloads the shared root items from `dataSource` and performs an IGListKit diff update.
 - (void)performUpdatesAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion;
 
 /// Reloads specific flattened objects without requesting a new data snapshot.

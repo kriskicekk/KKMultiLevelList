@@ -82,7 +82,7 @@
         return ((MLTestItem *)item).initialVisibleChildrenCount;
     };
     MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:params];
-    service.rootItems = rootItems;
+    service.rootItems = [rootItems mutableCopy];
     return service;
 }
 
@@ -134,7 +134,7 @@
     };
     MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:params];
 
-    service.rootItems = @[root];
+    service.rootItems = [@[root] mutableCopy];
 
     XCTAssertEqual(root.initialVisibleChildrenCount, 0);
     XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 2);
@@ -292,6 +292,24 @@
                           (@[@"first-cell", @"root-cell", @"last-cell"]));
 }
 
+- (void)testRootMutationsKeepBusinessRootArraySynchronized {
+    MLTestItem *root = [self itemWithId:@"root"];
+    MLTestItem *inserted = [self itemWithId:@"inserted"];
+    NSMutableArray<id<MLListItemProtocol>> *rootItems = [@[root] mutableCopy];
+    MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:nil];
+    service.rootItems = rootItems;
+    
+    [service insertRootItem:inserted position:MLListInsertPositionLast];
+    
+    XCTAssertEqual(service.rootItems, rootItems);
+    XCTAssertEqualObjects(rootItems, (@[root, inserted]));
+    
+    [service deleteVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeCell]];
+    
+    XCTAssertEqual(service.rootItems, rootItems);
+    XCTAssertEqualObjects(rootItems, (@[inserted]));
+}
+
 - (void)testInsertEmptyRootItemsDoesNothing {
     MLTestItem *root = [self itemWithId:@"root"];
     MLListFlattenService *service = [self serviceWithRootItems:@[root]];
@@ -436,7 +454,7 @@
     MLTestItem *newRoot = [self itemWithId:@"new-root" children:@[newChild] visibleCount:1];
     MLListFlattenService *service = [self serviceWithRootItems:@[oldRoot]];
     
-    service.rootItems = @[newRoot];
+    service.rootItems = [@[newRoot] mutableCopy];
     
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"new-root-cell", @"new-child-cell", @"new-root-footer"]));
@@ -521,7 +539,7 @@
     MLFlattenedItemModel *model = [self modelInService:service item:root type:MLFlattenedItemTypeCell];
 
     model.itemState.displayStatus = MLListItemDisplayStatusLoading;
-    service.rootItems = @[root];
+    service.rootItems = [@[root] mutableCopy];
 
     MLFlattenedItemModel *rebuiltModel = [self modelInService:service item:root type:MLFlattenedItemTypeCell];
     XCTAssertEqual(rebuiltModel.itemState.visibleChildrenCount, 0);

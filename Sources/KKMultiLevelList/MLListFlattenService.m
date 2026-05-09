@@ -32,9 +32,9 @@
 
 #pragma mark - Setter
 
-- (void)setRootItems:(NSArray<id<MLListItemProtocol>> *)rootItems {
-    // Replacing root items establishes a new tree snapshot and rebuilds the
-    // visible projection from scratch.
+- (void)setRootItems:(NSMutableArray<id<MLListItemProtocol>> *)rootItems {
+    // Keep the business-owned mutable root array. Root insert/delete APIs
+    // mutate this same container so the host data source remains synchronized.
     _rootItems = rootItems;
     _visibleItems = [self visibleItemsForItems:self.rootItems level:0];
 }
@@ -344,7 +344,12 @@
     }
     
     NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
-    NSArray<id<MLListItemProtocol>> *oldRootItems = self.rootItems ?: @[];
+    NSMutableArray<id<MLListItemProtocol>> *rootItems = self.rootItems;
+    if (rootItems == nil) {
+        rootItems = [NSMutableArray array];
+        _rootItems = rootItems;
+    }
+    NSArray<id<MLListItemProtocol>> *oldRootItems = [rootItems copy];
     NSUInteger insertIndex = MIN(index, oldRootItems.count);
     NSUInteger visibleInsertIndex = visibleItems.count;
     if (insertIndex < oldRootItems.count) {
@@ -356,10 +361,8 @@
         }
     }
     
-    NSMutableArray<id<MLListItemProtocol>> *rootItems = [oldRootItems mutableCopy];
     NSIndexSet *rootInsertIndexes = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(insertIndex, items.count)];
     [rootItems insertObjects:items atIndexes:rootInsertIndexes];
-    _rootItems = [rootItems copy];
     
     NSMutableArray<MLFlattenedItemModel *> *newFlattenedItems = [NSMutableArray array];
     for (id<MLListItemProtocol> item in items) {
@@ -489,7 +492,7 @@
     
     MLFlattenedItemModel *parentModel = model.parent;
     id<MLListItemProtocol> parentItem = parentModel.differableObject;
-    NSMutableArray<id<MLListItemProtocol>> *rootItems = [self.rootItems mutableCopy];
+    NSMutableArray<id<MLListItemProtocol>> *rootItems = self.rootItems;
     
     // Remove the whole visible subtree, not just the tapped row.
     [visibleItems removeObjectsInRange:deleteRange];
@@ -520,7 +523,6 @@
         NSUInteger rootIndex = rootItems == nil ? NSNotFound : [rootItems indexOfObjectIdenticalTo:deletedItem];
         if (rootIndex != NSNotFound) {
             [rootItems removeObjectAtIndex:rootIndex];
-            _rootItems = [rootItems copy];
         }
     }
     

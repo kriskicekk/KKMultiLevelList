@@ -31,7 +31,7 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
 @property (nonatomic, strong) UICollectionView *collectionView;
 @property (nonatomic, strong) IGListAdapter *adapter;
 @property (nonatomic, strong) MLListManager *listManager;
-@property (nonatomic, strong) NSArray<id<MLListItemProtocol>> *items;
+@property (nonatomic, strong) NSMutableArray<id<MLListItemProtocol>> *items;
 @property (nonatomic, assign) NSInteger loadMoreItemIndex;
 @property (nonatomic, assign, getter=isLoadingMoreItems) BOOL loadingMoreItems;
 
@@ -299,7 +299,7 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
     [self expandNode:commentExample initialVisibleCount:kDemoExpandItemsPerStep];
     [self expandNode:projectExample initialVisibleCount:2];
     
-    self.items = @[organizationExample, commentExample, projectExample, knowledgeExample, commerceExample];
+    self.items = [@[organizationExample, commentExample, projectExample, knowledgeExample, commerceExample] mutableCopy];
 }
 
 - (void)setupLoadMoreFooter {
@@ -339,9 +339,10 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
             [loadedItems addObject:[strongSelf loadMoreDemoItemAtIndex:itemIndex]];
         }
         
-        NSMutableArray<id<MLListItemProtocol>> *items = [strongSelf.items mutableCopy] ?: [NSMutableArray array];
-        [items addObjectsFromArray:loadedItems];
-        strongSelf.items = [items copy];
+        if (strongSelf.items == nil) {
+            strongSelf.items = [NSMutableArray array];
+        }
+        [strongSelf.items addObjectsFromArray:loadedItems];
         strongSelf.loadMoreItemIndex = startIndex + kDemoLoadMoreItemsPerPage - 1;
         strongSelf.tipLabel.text = [NSString stringWithFormat:@"已加载更多：动态分组 %ld-%ld。", (long)startIndex, (long)strongSelf.loadMoreItemIndex];
         [strongSelf.listManager insertRootItems:loadedItems position:MLListInsertPositionLast animated:YES completion:nil];
@@ -407,7 +408,7 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
     return label;
 }
 
-- (NSArray<id<MLListItemProtocol>> *)objectsForMLListManager:(MLListManager *)listManager {
+- (NSMutableArray<id<MLListItemProtocol>> *)objectsForMLListManager:(MLListManager *)listManager {
     return self.items;
 }
 
