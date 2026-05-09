@@ -23,8 +23,8 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
 @interface MLListFlattenService ()
 
 @property (nonatomic, strong) MLListStateStore *stateStore;
-@property (nonatomic, strong) NSDictionary<NSString *, NSNumber *> *visibleIndexByKey;
-@property (nonatomic, strong) NSDictionary<NSString *, MLFlattenedItemModel *> *visibleModelByKey;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, NSNumber *> *visibleIndexByKey;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, MLFlattenedItemModel *> *visibleModelByKey;
 
 @end
 
@@ -38,8 +38,8 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     if (self = [super init]) {
         _params = [params copy] ?: [[MLListFlattenParams alloc] init];
         _stateStore = [[MLListStateStore alloc] init];
-        _visibleIndexByKey = @{};
-        _visibleModelByKey = @{};
+        _visibleIndexByKey = [NSMutableDictionary dictionary];
+        _visibleModelByKey = [NSMutableDictionary dictionary];
     }
     return self;
 }
@@ -97,8 +97,83 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
             visibleModelByKey[key] = model;
         }
     }];
-    self.visibleIndexByKey = [visibleIndexByKey copy];
-    self.visibleModelByKey = [visibleModelByKey copy];
+    self.visibleIndexByKey = visibleIndexByKey;
+    self.visibleModelByKey = visibleModelByKey;
+}
+
+- (void)addLookupEntryForModel:(MLFlattenedItemModel *)model atIndex:(NSUInteger)index {
+    NSParameterAssert(model);
+    NSString *key = MLListVisibleModelIndexKey(model.differableObject, model.type);
+    if (key == nil) {
+        return;
+    }
+    self.visibleIndexByKey[key] = @(index);
+    self.visibleModelByKey[key] = model;
+}
+
+- (void)removeLookupEntryForModel:(MLFlattenedItemModel *)model {
+    NSParameterAssert(model);
+    NSString *key = MLListVisibleModelIndexKey(model.differableObject, model.type);
+    if (key == nil) {
+        return;
+    }
+    [self.visibleIndexByKey removeObjectForKey:key];
+    [self.visibleModelByKey removeObjectForKey:key];
+}
+
+- (void)shiftLookupIndexesStartingAtIndex:(NSUInteger)startIndex
+                           inVisibleItems:(NSArray<MLFlattenedItemModel *> *)visibleItems
+                                    delta:(NSInteger)delta {
+    NSParameterAssert(visibleItems);
+    if (delta == 0 || startIndex >= visibleItems.count) {
+        return;
+    }
+    for (NSUInteger index = startIndex; index < visibleItems.count; index++) {
+        MLFlattenedItemModel *model = visibleItems[index];
+        NSString *key = MLListVisibleModelIndexKey(model.differableObject, model.type);
+        if (key != nil && self.visibleIndexByKey[key] != nil) {
+            self.visibleIndexByKey[key] = @((NSInteger)index + delta);
+        }
+    }
+}
+
+- (void)commitVisibleItems:(NSArray<MLFlattenedItemModel *> *)visibleItems
+     replacingVisibleRange:(NSRange)range
+                 withItems:(NSArray<MLFlattenedItemModel *> *)replacementItems {
+    NSParameterAssert(visibleItems);
+    NSParameterAssert(replacementItems);
+    NSArray<MLFlattenedItemModel *> *oldVisibleItems = self.visibleItems ?: @[];
+    NSAssert(range.location != NSNotFound && NSMaxRange(range) <= oldVisibleItems.count, @"Visible range is out of bounds.");
+    if (range.location == NSNotFound || NSMaxRange(range) > oldVisibleItems.count) {
+        return;
+    }
+
+    NSInteger delta = (NSInteger)replacementItems.count - (NSInteger)range.length;
+    NSUInteger suffixCount = oldVisibleItems.count - NSMaxRange(range);
+    NSUInteger changedCount = range.length + replacementItems.count;
+    NSUInteger indexShiftCount = delta == 0 ? 0 : suffixCount;
+    NSUInteger incrementalWork = indexShiftCount + changedCount * 2;
+    NSUInteger rebuildWork = visibleItems.count * 2;
+    BOOL shouldRebuildLookupTables = incrementalWork >= rebuildWork;
+    if (shouldRebuildLookupTables) {
+        _visibleItems = [visibleItems copy] ?: @[];
+        [self rebuildVisibleItemLookupTables];
+        return;
+    }
+
+    for (NSUInteger index = range.location; index < NSMaxRange(range); index++) {
+        [self removeLookupEntryForModel:oldVisibleItems[index]];
+    }
+
+    [self shiftLookupIndexesStartingAtIndex:NSMaxRange(range)
+                             inVisibleItems:oldVisibleItems
+                                      delta:delta];
+
+    [replacementItems enumerateObjectsUsingBlock:^(MLFlattenedItemModel *model, NSUInteger offset, __unused BOOL *stop) {
+        [self addLookupEntryForModel:model atIndex:range.location + offset];
+    }];
+
+    _visibleItems = [visibleItems copy] ?: @[];
 }
 
 - (MLFlattenedItemModel *)flattenedItemModelWithObject:(id<MLListItemProtocol>)object
@@ -260,11 +335,10 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
 }
 
 - (void)replaceVisibleModelForObject:(id<MLListItemProtocol>)object
-                                type:(MLFlattenedItemType)type
-                      inVisibleItems:(NSMutableArray<MLFlattenedItemModel *> *)visibleItems {
+                                type:(MLFlattenedItemType)type {
     NSParameterAssert(object);
-    NSParameterAssert(visibleItems);
-    NSInteger index = [self visibleIndexForObject:object type:type inVisibleItems:visibleItems];
+    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
+    NSInteger index = [self visibleIndexForObject:object type:type];
     if (index == NSNotFound) {
         return;
     }
@@ -274,17 +348,19 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     oldModel.displayStatusDidChangeHandler = nil;
     MLFlattenedItemModel *newModel = [self flattenedItemModelWithObject:object
                                                                   parent:oldModel.parent
-                                                                   level:oldModel.level
-                                                                    type:type];
+                                                                  level:oldModel.level
+                                                                   type:type];
     [visibleItems replaceObjectAtIndex:index withObject:newModel];
+    [self commitVisibleItems:visibleItems
+       replacingVisibleRange:NSMakeRange(index, 1)
+                   withItems:@[newModel]];
 }
 
 - (void)removeVisibleModelForObject:(id<MLListItemProtocol>)object
-                                type:(MLFlattenedItemType)type
-                      inVisibleItems:(NSMutableArray<MLFlattenedItemModel *> *)visibleItems {
+                                type:(MLFlattenedItemType)type {
     NSParameterAssert(object);
-    NSParameterAssert(visibleItems);
-    NSInteger index = [self visibleIndexForObject:object type:type inVisibleItems:visibleItems];
+    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
+    NSInteger index = [self visibleIndexForObject:object type:type];
     if (index == NSNotFound) {
         return;
     }
@@ -294,13 +370,15 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     // blocks, but they should no longer drive UI updates.
     model.displayStatusDidChangeHandler = nil;
     [visibleItems removeObjectAtIndex:index];
+    [self commitVisibleItems:visibleItems
+       replacingVisibleRange:NSMakeRange(index, 1)
+                   withItems:@[]];
 }
 
 - (void)insertFlattenedItems:(NSArray<MLFlattenedItemModel *> *)flattenedItems
-                     atIndex:(NSUInteger)index
-             intoVisibleItems:(NSMutableArray<MLFlattenedItemModel *> *)visibleItems {
+                     atIndex:(NSUInteger)index {
     NSParameterAssert(flattenedItems);
-    NSParameterAssert(visibleItems);
+    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
     NSAssert(index <= visibleItems.count, @"Insert index is out of visibleItems bounds.");
     if (flattenedItems.count == 0 || index > visibleItems.count) {
         return;
@@ -308,6 +386,24 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     
     NSIndexSet *insertIndexes = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(index, flattenedItems.count)];
     [visibleItems insertObjects:flattenedItems atIndexes:insertIndexes];
+    [self commitVisibleItems:visibleItems
+       replacingVisibleRange:NSMakeRange(index, 0)
+                   withItems:flattenedItems];
+}
+
+- (void)removeVisibleItemsInRange:(NSRange)range {
+    if (range.location == NSNotFound || range.length == 0) {
+        return;
+    }
+    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
+    NSAssert(NSMaxRange(range) <= visibleItems.count, @"Remove range is out of visibleItems bounds.");
+    if (NSMaxRange(range) > visibleItems.count) {
+        return;
+    }
+    [visibleItems removeObjectsInRange:range];
+    [self commitVisibleItems:visibleItems
+       replacingVisibleRange:range
+                   withItems:@[]];
 }
 
 - (void)collapseDescendantsOfObject:(id<MLListItemProtocol>)object {
@@ -359,7 +455,6 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
         [self appendVisibleItemsForObject:child parent:parentModel level:model.level + 1 toArray:newFlattenedItems];
     }
     
-    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
     NSInteger footerIndex = [self visibleIndexForObject:rootItem type:MLFlattenedItemTypeFooter];
     NSInteger insertIndex = footerIndex;
     if (insertIndex == NSNotFound) {
@@ -369,7 +464,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
         }
         insertIndex = visibleRange.location + visibleRange.length;
     }
-    if (insertIndex > visibleItems.count) {
+    if (insertIndex > self.visibleItems.count) {
         return;
     }
     
@@ -377,12 +472,9 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     // snapshots so IGListKit can diff the new footer text/display status.
     [self setVisibleChildrenCount:newVisibleChildrenCount forObject:rootItem];
     
-    NSIndexSet *insertIndexes = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(insertIndex, newFlattenedItems.count)];
-    [visibleItems insertObjects:newFlattenedItems atIndexes:insertIndexes];
-    [self replaceVisibleModelForObject:rootItem type:MLFlattenedItemTypeCell inVisibleItems:visibleItems];
-    [self replaceVisibleModelForObject:rootItem type:MLFlattenedItemTypeFooter inVisibleItems:visibleItems];
-    
-    [self updateVisibleItems:visibleItems];
+    [self insertFlattenedItems:newFlattenedItems atIndex:insertIndex];
+    [self replaceVisibleModelForObject:rootItem type:MLFlattenedItemTypeCell];
+    [self replaceVisibleModelForObject:rootItem type:MLFlattenedItemTypeFooter];
 }
 
 - (void)insertRootItem:(id<MLListItemProtocol>)item
@@ -401,7 +493,6 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
         return;
     }
     
-    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
     NSMutableArray<id<MLListItemProtocol>> *rootItems = self.rootItems;
     if (rootItems == nil) {
         rootItems = [NSMutableArray array];
@@ -409,7 +500,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     }
     NSArray<id<MLListItemProtocol>> *oldRootItems = [rootItems copy];
     NSUInteger insertIndex = MIN(index, oldRootItems.count);
-    NSUInteger visibleInsertIndex = visibleItems.count;
+    NSUInteger visibleInsertIndex = self.visibleItems.count;
     if (insertIndex < oldRootItems.count) {
         // Insert before the flattened subtree of the root item that currently
         // occupies the target root index.
@@ -426,8 +517,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     for (id<MLListItemProtocol> item in items) {
         [self appendVisibleItemsForObject:item parent:nil level:0 toArray:newFlattenedItems];
     }
-    [self insertFlattenedItems:newFlattenedItems atIndex:visibleInsertIndex intoVisibleItems:visibleItems];
-    [self updateVisibleItems:visibleItems];
+    [self insertFlattenedItems:newFlattenedItems atIndex:visibleInsertIndex];
 }
 
 - (void)insertRootItem:(id<MLListItemProtocol>)item
@@ -469,12 +559,11 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
         return;
     }
     
-    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
     NSInteger parentVisibleIndex = [self visibleIndexForObject:parentItem type:MLFlattenedItemTypeCell];
     if (parentVisibleIndex == NSNotFound) {
         return;
     }
-    MLFlattenedItemModel *parentVisibleModel = visibleItems[parentVisibleIndex];
+    MLFlattenedItemModel *parentVisibleModel = self.visibleItems[parentVisibleIndex];
     id<MLListItemProtocol> currentParentItem = parentVisibleModel.differableObject;
     
     NSMutableArray<id<MLListItemProtocol>> *children = currentParentItem.children ?: [NSMutableArray array];
@@ -493,7 +582,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     NSInteger newVisibleChildrenCount = MIN(oldVisibleChildrenCount + (NSInteger)items.count, (NSInteger)currentParentItem.children.count);
     [self setVisibleChildrenCount:newVisibleChildrenCount forObject:currentParentItem];
     
-    NSUInteger visibleInsertIndex = visibleItems.count;
+    NSUInteger visibleInsertIndex = self.visibleItems.count;
     if (position == MLListInsertPositionFirst && oldVisibleChildrenCount > 0 && oldChildren.count > 0) {
         // First means "before the first currently visible child", not simply
         // after the parent row.
@@ -526,11 +615,9 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     for (id<MLListItemProtocol> item in items) {
         [self appendVisibleItemsForObject:item parent:parentVisibleModel level:parentVisibleModel.level + 1 toArray:newFlattenedItems];
     }
-    [self insertFlattenedItems:newFlattenedItems atIndex:visibleInsertIndex intoVisibleItems:visibleItems];
-    [self replaceVisibleModelForObject:currentParentItem type:MLFlattenedItemTypeCell inVisibleItems:visibleItems];
-    [self replaceVisibleModelForObject:currentParentItem type:MLFlattenedItemTypeFooter inVisibleItems:visibleItems];
-    
-    [self updateVisibleItems:visibleItems];
+    [self insertFlattenedItems:newFlattenedItems atIndex:visibleInsertIndex];
+    [self replaceVisibleModelForObject:currentParentItem type:MLFlattenedItemTypeCell];
+    [self replaceVisibleModelForObject:currentParentItem type:MLFlattenedItemTypeFooter];
 }
 
 - (void)deleteVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model {
@@ -547,7 +634,6 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
         return;
     }
     id<MLListItemProtocol> deletedItem = model.differableObject;
-    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
     NSRange deleteRange = [self visibleRangeForObject:deletedItem inVisibleItems:self.visibleItems];
     if (deleteRange.location == NSNotFound || deleteRange.length == 0) {
         return;
@@ -558,7 +644,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     NSMutableArray<id<MLListItemProtocol>> *rootItems = self.rootItems;
     
     // Remove the whole visible subtree, not just the tapped row.
-    [visibleItems removeObjectsInRange:deleteRange];
+    [self removeVisibleItemsInRange:deleteRange];
     [self removeStateForObjectAndDescendants:deletedItem];
     
     if (parentItem != nil) {
@@ -575,11 +661,11 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
             }
             newVisibleChildrenCount = MIN(newVisibleChildrenCount, (NSInteger)parentItem.children.count);
             [self setVisibleChildrenCount:newVisibleChildrenCount forObject:parentItem];
-            [self replaceVisibleModelForObject:parentItem type:MLFlattenedItemTypeCell inVisibleItems:visibleItems];
+            [self replaceVisibleModelForObject:parentItem type:MLFlattenedItemTypeCell];
             if (parentItem.children.count == 0 || parentItem.totalChildrenCount <= 0) {
-                [self removeVisibleModelForObject:parentItem type:MLFlattenedItemTypeFooter inVisibleItems:visibleItems];
+                [self removeVisibleModelForObject:parentItem type:MLFlattenedItemTypeFooter];
             } else {
-                [self replaceVisibleModelForObject:parentItem type:MLFlattenedItemTypeFooter inVisibleItems:visibleItems];
+                [self replaceVisibleModelForObject:parentItem type:MLFlattenedItemTypeFooter];
             }
         }
     } else {
@@ -588,8 +674,6 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
             [rootItems removeObjectAtIndex:rootIndex];
         }
     }
-    
-    [self updateVisibleItems:visibleItems];
 }
 
 - (void)collapseVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model {
@@ -603,7 +687,6 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     
     NSAssert(model.type == MLFlattenedItemTypeCell || model.type == MLFlattenedItemTypeFooter, @"Collapse expects a normal or footer flattened model.");
     id<MLListItemProtocol> rootItem = model.differableObject;
-    NSMutableArray<MLFlattenedItemModel *> *visibleItems = [_visibleItems mutableCopy] ?: [NSMutableArray array];
     NSInteger rootIndex = [self visibleIndexForObject:rootItem type:MLFlattenedItemTypeCell];
     if (rootIndex == NSNotFound) {
         return;
@@ -627,17 +710,15 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     }
     
     if (deleteRange.location != NSNotFound && deleteRange.length > 0) {
-        [visibleItems removeObjectsInRange:deleteRange];
+        [self removeVisibleItemsInRange:deleteRange];
     }
     
     [self setVisibleChildrenCount:0 forObject:rootItem];
     if (self.params.collapsesDescendantsOnCollapse) {
         [self collapseDescendantsOfObject:rootItem];
     }
-    [self replaceVisibleModelForObject:rootItem type:MLFlattenedItemTypeCell inVisibleItems:visibleItems];
-    [self replaceVisibleModelForObject:rootItem type:MLFlattenedItemTypeFooter inVisibleItems:visibleItems];
-    
-    [self updateVisibleItems:visibleItems];
+    [self replaceVisibleModelForObject:rootItem type:MLFlattenedItemTypeCell];
+    [self replaceVisibleModelForObject:rootItem type:MLFlattenedItemTypeFooter];
 }
 
 @end
