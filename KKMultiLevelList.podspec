@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'KKMultiLevelList'
-  s.version          = '0.1.1'
+  s.version          = '0.1.2'
   s.summary          = 'A multi-level expandable list manager built on IGListKit.'
   s.description      = <<-DESC
 KKMultiLevelList flattens tree-structured business models into IGListKit sections.
