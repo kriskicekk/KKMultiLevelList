@@ -75,19 +75,19 @@ Open `KKMultiLevelList.xcworkspace` and run the `KKMultiLevelList` scheme. The a
 
 ### Expand More
 
-<img src="https://raw.githubusercontent.com/kriskicekk/KKMultiLevelList/main/Docs/Assets/README/expand-more.gif" alt="Expand more demo" width="280">
+<img src="https://github.com/kriskicekk/KKMultiLevelList/blob/main/Docs/Assets/README/expand-more.gif?raw=true" alt="Expand more demo" width="280">
 
 ### Collapse
 
-<img src="https://raw.githubusercontent.com/kriskicekk/KKMultiLevelList/main/Docs/Assets/README/collapse.gif" alt="Collapse demo" width="280">
+<img src="https://github.com/kriskicekk/KKMultiLevelList/blob/main/Docs/Assets/README/collapse.gif?raw=true" alt="Collapse demo" width="280">
 
 ### Load More
 
-<img src="https://raw.githubusercontent.com/kriskicekk/KKMultiLevelList/main/Docs/Assets/README/load-more.gif" alt="Load more demo" width="280">
+<img src="https://github.com/kriskicekk/KKMultiLevelList/blob/main/Docs/Assets/README/load-more.gif?raw=true" alt="Load more demo" width="280">
 
 ### Delete
 
-<img src="https://raw.githubusercontent.com/kriskicekk/KKMultiLevelList/main/Docs/Assets/README/delete.gif" alt="Delete demo" width="280">
+<img src="https://github.com/kriskicekk/KKMultiLevelList/blob/main/Docs/Assets/README/delete.gif?raw=true" alt="Delete demo" width="280">
 
 ## License
 
