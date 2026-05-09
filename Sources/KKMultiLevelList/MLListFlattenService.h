@@ -41,7 +41,7 @@ typedef NS_ENUM(NSInteger, MLListInsertPosition) {
 ///
 /// The manager uses this to reload visible rows when UI-only state such as
 /// loading changes without a full `performUpdates`.
-@property (nonatomic, nullable, copy) MLFlattenedItemStatusDidChangeHandler statusDidChangeHandler;
+@property (nonatomic, nullable, copy) MLFlattenedItemDisplayStatusDidChangeHandler displayStatusDidChangeHandler;
 
 /// Current flat list consumed by IGListKit.
 @property (nonatomic, strong, readonly) NSArray<MLFlattenedItemModel *> *visibleItems;

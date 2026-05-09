@@ -2,7 +2,7 @@
 //  MLDemoFooterCell.m
 //  KKMultiLevelList
 //
-//  Created by Codex on 2026/4/27.
+//  Created by kris cheng on 2026/4/27.
 //
 
 #import "MLDemoFooterCell.h"
@@ -85,15 +85,15 @@
 - (void)configureWithModel:(MLFlattenedItemModel *)model {
     NSInteger remainCount = model.remainingChildrenCount;
     NSString *text = nil;
-    if (model.status == MLFlattenedItemStatusLoading) {
+    if (model.itemState.displayStatus == MLListItemDisplayStatusLoading) {
         text = @"加载中...";
-    } else if (model.status == MLFlattenedItemStatusCollapsing) {
+    } else if (model.itemState.displayStatus == MLListItemDisplayStatusCollapsing) {
         text = @"折叠中...";
-    } else if (model.status == MLFlattenedItemStatusPartiallyExpanded || model.status == MLFlattenedItemStatusCollapsed) {
+    } else if (model.itemState.displayStatus == MLListItemDisplayStatusPartiallyExpanded || model.itemState.displayStatus == MLListItemDisplayStatusCollapsed) {
         text = [NSString stringWithFormat:@"展开剩余 %ld 个子项", (long)remainCount];
-    } else if (model.status == MLFlattenedItemStatusFullyExpanded) {
+    } else if (model.itemState.displayStatus == MLListItemDisplayStatusFullyExpanded) {
         text = @"折叠";
-    } else if (model.status == MLFlattenedItemStatusLoadFailed) {
+    } else if (model.itemState.displayStatus == MLListItemDisplayStatusLoadFailed) {
         text = @"加载失败，请重试！";
     }
     
@@ -104,7 +104,7 @@
     self.actionLabel.textColor = UIColor.secondaryLabelColor;
     self.loadingIndicator.color = UIColor.tertiaryLabelColor;
     
-    if (model.status == MLFlattenedItemStatusLoading || model.status == MLFlattenedItemStatusCollapsing) {
+    if (model.itemState.displayStatus == MLListItemDisplayStatusLoading || model.itemState.displayStatus == MLListItemDisplayStatusCollapsing) {
         self.leadingLineView.hidden = YES;
         self.arrowImageView.hidden = YES;
         self.loadingIndicator.hidden = NO;
@@ -117,7 +117,7 @@
         [self.loadingIndicator stopAnimating];
         UIImageSymbolConfiguration *configuration = [UIImageSymbolConfiguration configurationWithPointSize:10.0 weight:UIImageSymbolWeightSemibold];
         NSString *imageName;
-        if (model.status == MLFlattenedItemStatusFullyExpanded) {
+        if (model.itemState.displayStatus == MLListItemDisplayStatusFullyExpanded) {
             imageName = @"chevron.up";
         } else {
             imageName = @"chevron.down";

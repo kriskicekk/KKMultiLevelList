@@ -8,31 +8,10 @@
 #ifndef MLFlattenedItemModel_h
 #define MLFlattenedItemModel_h
 
+#import "MLListItemState.h"
 #import "MLListItemProtocol.h"
 
 NS_ASSUME_NONNULL_BEGIN
-
-/// Presentation state for a flattened item.
-///
-/// Normal rows and footer rows both use this status so that business UI can
-/// render arrows, loading indicators, retry states, and collapse affordances
-/// without keeping duplicate state.
-typedef NS_ENUM(NSInteger, MLFlattenedItemStatus) {
-    /// Initial fallback state.
-    MLFlattenedItemStatusDefault = 0,
-    /// No children are visible.
-    MLFlattenedItemStatusCollapsed,
-    /// Some children are visible, but more remain hidden.
-    MLFlattenedItemStatusPartiallyExpanded,
-    /// All known children are visible.
-    MLFlattenedItemStatusFullyExpanded,
-    /// Footer is performing a load/expand action.
-    MLFlattenedItemStatusLoading,
-    /// Footer is performing a collapse action.
-    MLFlattenedItemStatusCollapsing,
-    /// Footer action failed and can be retried by business UI.
-    MLFlattenedItemStatusLoadFailed
-};
 
 /// Distinguishes the row generated for the business item from the synthetic
 /// footer generated for that same item.
@@ -45,7 +24,7 @@ typedef NS_ENUM(NSInteger, MLFlattenedItemType) {
 
 @class MLFlattenedItemModel;
 
-typedef void(^MLFlattenedItemStatusDidChangeHandler)(MLFlattenedItemModel *model);
+typedef void(^MLFlattenedItemDisplayStatusDidChangeHandler)(MLFlattenedItemModel *model);
 
 /// Flat IGListKit model generated from a tree node.
 ///
@@ -69,20 +48,14 @@ typedef void(^MLFlattenedItemStatusDidChangeHandler)(MLFlattenedItemModel *model
 /// Zero-based tree depth. Root items are level `0`.
 @property (nonatomic, assign) NSInteger level;
 
-/// Snapshot of the backing item's visible child count at creation time.
-@property (nonatomic, assign) NSInteger visibleChildrenCount;
+/// Snapshot of framework-owned state at creation time.
+@property (nonatomic, copy) MLListItemState *itemState;
 
 /// Snapshot of the backing item's total child count at creation time.
 @property (nonatomic, assign) NSInteger totalChildrenCount;
 
 /// Remaining hidden child count derived from total and visible child counts.
 @property (nonatomic, assign, readonly) NSInteger remainingChildrenCount;
-
-/// UI-facing state used by business cells and footer cells.
-///
-/// Setting this property notifies the list manager when the value actually
-/// changes.
-@property (nonatomic, assign) MLFlattenedItemStatus status;
 
 @end
 

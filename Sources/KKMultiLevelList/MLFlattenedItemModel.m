@@ -8,70 +8,91 @@
 #import "Internal/MLFlattenedItemModelInternal.h"
 #import "MLListItemProtocol.h"
 
+static MLListItemDisplayStatus MLFlattenedItemDisplayStatusForCounts(NSInteger visibleChildrenCount, NSInteger totalChildrenCount) {
+    if (visibleChildrenCount <= 0) {
+        return MLListItemDisplayStatusCollapsed;
+    } else if (visibleChildrenCount < totalChildrenCount) {
+        return MLListItemDisplayStatusPartiallyExpanded;
+    } else {
+        return MLListItemDisplayStatusFullyExpanded;
+    }
+}
+
 @implementation MLFlattenedItemModel
 
 - (instancetype)initWithDifferableObject:(id<MLListItemProtocol>)object
                                   parent:(MLFlattenedItemModel *)parent
                                    level:(NSInteger)level
                                     type:(MLFlattenedItemType)type {
+    return [self initWithDifferableObject:object
+                                   parent:parent
+                                    level:level
+                                     type:type
+                     visibleChildrenCount:0];
+}
+
+- (instancetype)initWithDifferableObject:(id<MLListItemProtocol>)object
+                                  parent:(MLFlattenedItemModel *)parent
+                                   level:(NSInteger)level
+                                    type:(MLFlattenedItemType)type
+                    visibleChildrenCount:(NSInteger)visibleChildrenCount {
     NSParameterAssert(object);
     NSAssert(level >= 0, @"Flattened item level must be non-negative.");
     NSAssert(type == MLFlattenedItemTypeCell || type == MLFlattenedItemTypeFooter, @"Flattened item type is invalid.");
-    NSAssert(object.visibleChildrenCount >= 0, @"visibleChildrenCount must be non-negative.");
+    NSAssert(visibleChildrenCount >= 0, @"visibleChildrenCount must be non-negative.");
     NSAssert(object.totalChildrenCount >= 0, @"totalChildrenCount must be non-negative.");
+    MLListItemDisplayStatus displayStatus = MLFlattenedItemDisplayStatusForCounts(visibleChildrenCount, object.totalChildrenCount);
     if (self = [super init]) {
         _differableObject = object;
         _parent = parent;
         _level = level;
         _type = type;
         
-        _visibleChildrenCount = object.visibleChildrenCount;
+        _itemState = [[MLListItemState alloc] initWithVisibleChildrenCount:visibleChildrenCount
+                                                             displayStatus:displayStatus];
+        [self installDisplayStatusDidChangeHandlerForItemState];
         _totalChildrenCount = object.totalChildrenCount;
-        
-        // The initial status is derived from count snapshots. Transient UI
-        // states such as loading are set later by the business interaction.
-        if (_visibleChildrenCount == 0) {
-            _status = MLFlattenedItemStatusCollapsed;
-        } else if (_visibleChildrenCount > 0 && _visibleChildrenCount < _totalChildrenCount) {
-            _status = MLFlattenedItemStatusPartiallyExpanded;
-        } else if (_visibleChildrenCount >= _totalChildrenCount) {
-            _status = MLFlattenedItemStatusFullyExpanded;
-        }
     }
     return self;
 }
 
 #pragma mark - Setter
 
-- (void)setVisibleChildrenCount:(NSInteger)visibleChildrenCount {
-    NSAssert(visibleChildrenCount >= 0, @"visibleChildrenCount must be non-negative.");
-    _visibleChildrenCount = visibleChildrenCount;
-    self.differableObject.visibleChildrenCount = visibleChildrenCount;
+- (void)setItemState:(MLListItemState *)itemState {
+    NSParameterAssert(itemState);
+    _itemState.displayStatusDidChangeHandler = nil;
+    _itemState = [itemState copy];
+    [self installDisplayStatusDidChangeHandlerForItemState];
 }
 
 - (void)setTotalChildrenCount:(NSInteger)totalChildrenCount {
     NSAssert(totalChildrenCount >= 0, @"totalChildrenCount must be non-negative.");
     _totalChildrenCount = totalChildrenCount;
-    self.differableObject.totalChildrenCount = totalChildrenCount;
-}
-
-- (void)setStatus:(MLFlattenedItemStatus)status {
-    if (_status == status) {
-        return;
-    }
-    
-    _status = status;
-    // Status changes are UI-only changes. Notify the manager so it can reload
-    // the current visible model without rebuilding the whole flattened list.
-    if (self.statusDidChangeHandler) {
-        self.statusDidChangeHandler(self);
-    }
 }
 
 #pragma mark - Getter
 
 - (NSInteger)remainingChildrenCount {
-    return MAX(self.differableObject.totalChildrenCount - self.differableObject.visibleChildrenCount, 0);
+    return MAX(self.totalChildrenCount - self.itemState.visibleChildrenCount, 0);
+}
+
+#pragma mark - Private
+
+- (void)installDisplayStatusDidChangeHandlerForItemState {
+    __weak typeof(self) weakSelf = self;
+    self.itemState.displayStatusDidChangeHandler = ^(__unused MLListItemState *state) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) {
+            return;
+        }
+
+        // Display status changes are UI-only changes. Notify the manager so it
+        // can reload the current visible model without rebuilding the whole
+        // flattened list.
+        if (strongSelf.displayStatusDidChangeHandler) {
+            strongSelf.displayStatusDidChangeHandler(strongSelf);
+        }
+    };
 }
 
 #pragma mark - IGListDiffable
@@ -101,8 +122,8 @@
     return [self.differableObject isEqualToDiffableObject:model.differableObject]
         && model.type == self.type
         && model.level == self.level
-        && model.status == self.status
-        && model.visibleChildrenCount == self.visibleChildrenCount
+        && model.itemState.displayStatus == self.itemState.displayStatus
+        && model.itemState.visibleChildrenCount == self.itemState.visibleChildrenCount
         && model.totalChildrenCount == self.totalChildrenCount;
 }
 

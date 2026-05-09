@@ -97,7 +97,19 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
     self.adapter = [[IGListAdapter alloc] initWithUpdater:updater viewController:self];
     self.adapter.collectionView = self.collectionView;
     
-    self.listManager = [[MLListManager alloc] initWithAdapter:self.adapter];
+    MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
+    params.expandBatchCount = kDemoExpandItemsPerStep;
+    params.defaultVisibleChildrenCountProvider = ^NSInteger(id<MLListItemProtocol> item,
+                                                            __unused NSInteger level,
+                                                            __unused id<MLListItemProtocol> parentItem) {
+        MLDemoListItem *demoItem = (MLDemoListItem *)item;
+        if (![demoItem isKindOfClass:MLDemoListItem.class]) {
+            return 0;
+        }
+        return demoItem.initialVisibleChildrenCount;
+    };
+
+    self.listManager = [[MLListManager alloc] initWithAdapter:self.adapter flattenServiceParams:params];
     self.listManager.dataSource = self;
     self.listManager.delegate = self;
     [self setupLoadMoreFooter];
@@ -378,7 +390,7 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
 
 - (void)expandNode:(MLDemoListItem *)node initialVisibleCount:(NSInteger)count {
     NSInteger visibleCount = MIN(MAX(count, 0), node.children.count);
-    node.visibleChildrenCount = visibleCount;
+    node.initialVisibleChildrenCount = visibleCount;
 }
 
 #pragma mark - MLListDataSource
@@ -441,27 +453,27 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
     self.tipLabel.text = [NSString stringWithFormat:@"点击节点：%@，当前层级：%ld。", item.title, (long)model.level + 1];
     
     if (!self.listManager.usesFooter && model.totalChildrenCount > 0) {
-        if (model.status == MLFlattenedItemStatusCollapsed || model.status == MLFlattenedItemStatusPartiallyExpanded) {
+        if (model.itemState.displayStatus == MLListItemDisplayStatusCollapsed || model.itemState.displayStatus == MLListItemDisplayStatusPartiallyExpanded) {
             [self.listManager appendFlattenItemsWithModel:model animated:YES completion:nil];
-        } else if (model.status == MLFlattenedItemStatusFullyExpanded) {
+        } else if (model.itemState.displayStatus == MLListItemDisplayStatusFullyExpanded) {
             [self.listManager collapseFlattenItemsWithModel:model animated:YES completion:nil];
         }
     }
 }
 
 - (void)flattenedItemSectionController:(MLFlattenedItemSectionController *)sectionController didSelectFooterAtIndex:(NSInteger)index withItemModel:(MLFlattenedItemModel *)model {
-    if (model.status == MLFlattenedItemStatusLoading || model.status == MLFlattenedItemStatusCollapsing) {
+    if (model.itemState.displayStatus == MLListItemDisplayStatusLoading || model.itemState.displayStatus == MLListItemDisplayStatusCollapsing) {
         return;
     }
     
-    if (model.status == MLFlattenedItemStatusCollapsed || model.status == MLFlattenedItemStatusPartiallyExpanded) {
-        model.status = MLFlattenedItemStatusLoading;
+    if (model.itemState.displayStatus == MLListItemDisplayStatusCollapsed || model.itemState.displayStatus == MLListItemDisplayStatusPartiallyExpanded) {
+        model.itemState.displayStatus = MLListItemDisplayStatusLoading;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.35 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [self.listManager appendFlattenItemsWithModel:model animated:YES completion:nil];
         });
         return;
-    } else if (model.status == MLFlattenedItemStatusFullyExpanded) {
-        model.status = MLFlattenedItemStatusCollapsing;
+    } else if (model.itemState.displayStatus == MLListItemDisplayStatusFullyExpanded) {
+        model.itemState.displayStatus = MLListItemDisplayStatusCollapsing;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.25 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [self.listManager collapseFlattenItemsWithModel:model animated:YES completion:nil];
         });

@@ -8,6 +8,7 @@
 #ifndef KKMultiLevelList_h
 #define KKMultiLevelList_h
 
+#import <KKMultiLevelList/MLListItemState.h>
 #import <KKMultiLevelList/MLFlattenedItemModel.h>
 #import <KKMultiLevelList/MLFlattenedItemSectionController.h>
 #import <KKMultiLevelList/MLFlattenedItemSectionControllerDelegate.h>

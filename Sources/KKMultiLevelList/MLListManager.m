@@ -38,7 +38,7 @@
 
 - (void)setupFlattenServiceWithParams:(nullable MLListFlattenParams *)params {
     _flattenService = [[MLListFlattenService alloc] initWithParams:params];
-    [self setupFlattenServiceStatusDidChangeHandler];
+    [self setupFlattenServiceDisplayStatusDidChangeHandler];
 }
 
 #pragma mark - Getter
@@ -131,18 +131,18 @@
 
 #pragma mark - Private
 
-- (void)setupFlattenServiceStatusDidChangeHandler {
+- (void)setupFlattenServiceDisplayStatusDidChangeHandler {
     __weak typeof(self) weakSelf = self;
-    self.flattenService.statusDidChangeHandler = ^(MLFlattenedItemModel *changedModel) {
+    self.flattenService.displayStatusDidChangeHandler = ^(MLFlattenedItemModel *changedModel) {
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (strongSelf == nil) {
             return;
         }
         
         dispatch_block_t reloadBlock = ^{
-            // Status changes can be triggered by a stale model retained by a
-            // cell or delayed block. Always reload the model currently present
-            // in visibleItems.
+            // Display status changes can be triggered by a stale model retained
+            // by a cell or delayed block. Always reload the model currently
+            // present in visibleItems.
             MLFlattenedItemModel *currentModel = [strongSelf currentVisibleModelMatchingModel:changedModel];
             if (currentModel != nil) {
                 [strongSelf reloadObjects:@[currentModel]];

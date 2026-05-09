@@ -61,6 +61,24 @@ The data source provides root tree items:
 
 The delegate provides normal cells, footer cells, sizes, selection behavior, and optional insets. See the Example app for a complete integration.
 
+### Initial Expansion
+
+By default, nodes start collapsed. Runtime expand and collapse operations are stored inside the framework and are not written back to the business model.
+
+To control per-node defaults, provide a `defaultVisibleChildrenCountProvider`:
+
+```objc
+MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
+params.defaultVisibleChildrenCountProvider = ^NSInteger(id<MLListItemProtocol> item,
+                                                        NSInteger level,
+                                                        id<MLListItemProtocol> parentItem) {
+    return level == 0 ? 3 : 0;
+};
+
+MLListManager *manager = [[MLListManager alloc] initWithAdapter:adapter
+                                           flattenServiceParams:params];
+```
+
 ## Project Layout
 
 ```text

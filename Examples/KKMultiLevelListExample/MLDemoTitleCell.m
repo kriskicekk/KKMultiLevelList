@@ -2,7 +2,7 @@
 //  MLDemoTitleCell.m
 //  KKMultiLevelList
 //
-//  Created by Codex on 2026/4/27.
+//  Created by kris cheng on 2026/4/27.
 //
 
 #import "MLDemoTitleCell.h"
@@ -75,7 +75,7 @@
     
     self.arrowLabel.hidden = !hasChildren;
     NSString *text;
-    if (model.status == MLFlattenedItemStatusPartiallyExpanded || model.status == MLFlattenedItemStatusFullyExpanded) {
+    if (model.itemState.displayStatus == MLListItemDisplayStatusPartiallyExpanded || model.itemState.displayStatus == MLListItemDisplayStatusFullyExpanded) {
         text = @"⌄";
     } else {
         text = @"›";

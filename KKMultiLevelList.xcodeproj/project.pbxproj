@@ -29,7 +29,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		015C09C72F9E435C0055D01F /* Exceptions for "KKMultiLevelListExample" folder in "KKMultiLevelList" target */ = {
+		015C09C72F9E435C0055D01F /* Exceptions for "Examples/KKMultiLevelListExample" folder in "KKMultiLevelList" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -39,22 +39,22 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		015C09B22F9E435B0055D01F /* KKMultiLevelListExample */ = {
+		015C09B22F9E435B0055D01F /* Examples/KKMultiLevelListExample */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				015C09C72F9E435C0055D01F /* Exceptions for "KKMultiLevelListExample" folder in "KKMultiLevelList" target */,
+				015C09C72F9E435C0055D01F /* Exceptions for "Examples/KKMultiLevelListExample" folder in "KKMultiLevelList" target */,
 			);
 			path = Examples/KKMultiLevelListExample;
 			sourceTree = "<group>";
 		};
-		BB0000000000000000000001 /* Sources */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Sources/KKMultiLevelList;
-			sourceTree = "<group>";
-		};
-		AA0000000000000000000002 /* KKMultiLevelListTests */ = {
+		AA0000000000000000000002 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Tests;
+			sourceTree = "<group>";
+		};
+		BB0000000000000000000001 /* Sources/KKMultiLevelList */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Sources/KKMultiLevelList;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -81,9 +81,9 @@
 		015C09A72F9E435B0055D01F = {
 			isa = PBXGroup;
 			children = (
-				BB0000000000000000000001 /* Sources */,
-				015C09B22F9E435B0055D01F /* KKMultiLevelListExample */,
-				AA0000000000000000000002 /* KKMultiLevelListTests */,
+				BB0000000000000000000001 /* Sources/KKMultiLevelList */,
+				015C09B22F9E435B0055D01F /* Examples/KKMultiLevelListExample */,
+				AA0000000000000000000002 /* Tests */,
 				015C09B12F9E435B0055D01F /* Products */,
 				60E859D8AF3F7331A1C8C28C /* Pods */,
 				2F4DAB06DE070CDD48B5864C /* Frameworks */,
@@ -134,8 +134,8 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				BB0000000000000000000001 /* Sources */,
-				015C09B22F9E435B0055D01F /* KKMultiLevelListExample */,
+				015C09B22F9E435B0055D01F /* Examples/KKMultiLevelListExample */,
+				BB0000000000000000000001 /* Sources/KKMultiLevelList */,
 			);
 			name = KKMultiLevelList;
 			productName = KKMultiLevelList;
@@ -156,7 +156,7 @@
 				AA000000000000000000000B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				AA0000000000000000000002 /* KKMultiLevelListTests */,
+				AA0000000000000000000002 /* Tests */,
 			);
 			name = KKMultiLevelListTests;
 			productName = KKMultiLevelListTests;

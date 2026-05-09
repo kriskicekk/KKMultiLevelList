@@ -8,6 +8,13 @@
 #import "MLListFlattenService.h"
 
 #import "Internal/MLFlattenedItemModelInternal.h"
+#import "Internal/MLListStateStore.h"
+
+@interface MLListFlattenService ()
+
+@property (nonatomic, strong) MLListStateStore *stateStore;
+
+@end
 
 @implementation MLListFlattenService
 
@@ -18,6 +25,7 @@
 - (instancetype)initWithParams:(nullable MLListFlattenParams *)params {
     if (self = [super init]) {
         _params = [params copy] ?: [[MLListFlattenParams alloc] init];
+        _stateStore = [[MLListStateStore alloc] init];
     }
     return self;
 }
@@ -31,12 +39,12 @@
     _visibleItems = [self visibleItemsForItems:self.rootItems level:0];
 }
 
-- (void)setStatusDidChangeHandler:(MLFlattenedItemStatusDidChangeHandler)statusDidChangeHandler {
-    _statusDidChangeHandler = [statusDidChangeHandler copy];
+- (void)setDisplayStatusDidChangeHandler:(MLFlattenedItemDisplayStatusDidChangeHandler)displayStatusDidChangeHandler {
+    _displayStatusDidChangeHandler = [displayStatusDidChangeHandler copy];
     // Existing visible models need the new handler too; newly created models
     // receive it in flattenedItemModelWithObject:parent:level:type:.
     for (MLFlattenedItemModel *model in self.visibleItems) {
-        model.statusDidChangeHandler = _statusDidChangeHandler;
+        [self installDisplayStatusDidChangeHandlerForModel:model];
     }
 }
 
@@ -60,12 +68,69 @@
                                                  level:(NSInteger)level
                                                   type:(MLFlattenedItemType)type {
     NSParameterAssert(object);
+    NSInteger visibleChildrenCount = [self visibleChildrenCountForObject:object level:level parent:parent];
     MLFlattenedItemModel *model = [[MLFlattenedItemModel alloc] initWithDifferableObject:object
                                                                                   parent:parent
                                                                                    level:level
-                                                                                    type:type];
-    model.statusDidChangeHandler = self.statusDidChangeHandler;
+                                                                                    type:type
+                                                                    visibleChildrenCount:visibleChildrenCount];
+    [self installDisplayStatusDidChangeHandlerForModel:model];
     return model;
+}
+
+- (void)installDisplayStatusDidChangeHandlerForModel:(MLFlattenedItemModel *)model {
+    __weak typeof(self) weakSelf = self;
+    model.displayStatusDidChangeHandler = ^(MLFlattenedItemModel *changedModel) {
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        if (strongSelf == nil) {
+            return;
+        }
+
+        if (strongSelf.displayStatusDidChangeHandler) {
+            strongSelf.displayStatusDidChangeHandler(changedModel);
+        }
+    };
+}
+
+- (NSInteger)initialVisibleChildrenCountForObject:(id<MLListItemProtocol>)object
+                                            level:(NSInteger)level
+                                       parentItem:(nullable id<MLListItemProtocol>)parentItem {
+    NSParameterAssert(object);
+    NSInteger visibleChildrenCount = 0;
+    if (self.params.defaultVisibleChildrenCountProvider) {
+        visibleChildrenCount = self.params.defaultVisibleChildrenCountProvider(object, level, parentItem);
+    } else if (self.params.defaultVisibleChildrenCount >= 0) {
+        visibleChildrenCount = self.params.defaultVisibleChildrenCount;
+    }
+
+    NSArray<id<MLListItemProtocol>> *children = object.children ?: @[];
+    return MIN(MAX(visibleChildrenCount, 0), (NSInteger)children.count);
+}
+
+- (NSInteger)visibleChildrenCountForObject:(id<MLListItemProtocol>)object
+                                      level:(NSInteger)level
+                                     parent:(nullable MLFlattenedItemModel *)parent {
+    NSParameterAssert(object);
+    NSAssert(object.totalChildrenCount >= 0, @"totalChildrenCount must be non-negative.");
+    NSInteger initialVisibleChildrenCount = [self initialVisibleChildrenCountForObject:object
+                                                                                 level:level
+                                                                            parentItem:parent.differableObject];
+    NSInteger visibleChildrenCount = [self.stateStore visibleChildrenCountForItem:object
+                                                      initialVisibleChildrenCount:initialVisibleChildrenCount];
+    NSArray<id<MLListItemProtocol>> *children = object.children ?: @[];
+    NSInteger clampedVisibleChildrenCount = MIN(MAX(visibleChildrenCount, 0), (NSInteger)children.count);
+    if (clampedVisibleChildrenCount != visibleChildrenCount) {
+        [self.stateStore setVisibleChildrenCount:clampedVisibleChildrenCount forItem:object];
+    }
+    return clampedVisibleChildrenCount;
+}
+
+- (void)setVisibleChildrenCount:(NSInteger)visibleChildrenCount forObject:(id<MLListItemProtocol>)object {
+    NSParameterAssert(object);
+    NSArray<id<MLListItemProtocol>> *children = object.children ?: @[];
+    NSInteger clampedVisibleChildrenCount = MIN(MAX(visibleChildrenCount, 0), (NSInteger)children.count);
+    [self.stateStore setVisibleChildrenCount:clampedVisibleChildrenCount
+                                     forItem:object];
 }
 
 - (void)appendVisibleItemsForObject:(id<MLListItemProtocol>)object
@@ -75,7 +140,6 @@
     NSParameterAssert(object);
     NSParameterAssert(visibleItems);
     NSAssert(level >= 0, @"Flatten level must be non-negative.");
-    NSAssert(object.visibleChildrenCount >= 0, @"visibleChildrenCount must be non-negative.");
     NSAssert(object.totalChildrenCount >= 0, @"totalChildrenCount must be non-negative.");
 
     // A business item always generates a normal row. It may also generate a
@@ -83,11 +147,12 @@
     MLFlattenedItemModel *cellItem = [self flattenedItemModelWithObject:object
                                                                   parent:parent
                                                                    level:level
-                                                                    type:MLFlattenedItemTypeCell];
+                                                                   type:MLFlattenedItemTypeCell];
     [visibleItems addObject:cellItem];
     
-    NSInteger visibleChildrenCount = MIN(object.children.count, object.visibleChildrenCount);
-    NSArray<id<MLListItemProtocol>> *visibleChildren = [object.children subarrayWithRange:NSMakeRange(0, visibleChildrenCount)];
+    NSArray<id<MLListItemProtocol>> *children = object.children ?: @[];
+    NSInteger visibleChildrenCount = MIN(children.count, cellItem.itemState.visibleChildrenCount);
+    NSArray<id<MLListItemProtocol>> *visibleChildren = [children subarrayWithRange:NSMakeRange(0, visibleChildrenCount)];
     for (id<MLListItemProtocol> child in visibleChildren) {
         [self appendVisibleItemsForObject:child parent:cellItem level:level + 1 toArray:visibleItems];
     }
@@ -152,7 +217,7 @@
     
     MLFlattenedItemModel *oldModel = visibleItems[index];
     // Replaced models should no longer be able to request UI reloads.
-    oldModel.statusDidChangeHandler = nil;
+    oldModel.displayStatusDidChangeHandler = nil;
     MLFlattenedItemModel *newModel = [self flattenedItemModelWithObject:object
                                                                   parent:oldModel.parent
                                                                    level:oldModel.level
@@ -173,7 +238,7 @@
     MLFlattenedItemModel *model = visibleItems[index];
     // Removed models may still be retained temporarily by cells or delayed
     // blocks, but they should no longer drive UI updates.
-    model.statusDidChangeHandler = nil;
+    model.displayStatusDidChangeHandler = nil;
     [visibleItems removeObjectAtIndex:index];
 }
 
@@ -194,8 +259,16 @@
 - (void)collapseDescendantsOfObject:(id<MLListItemProtocol>)object {
     NSParameterAssert(object);
     for (id<MLListItemProtocol> child in object.children) {
-        child.visibleChildrenCount = 0;
+        [self setVisibleChildrenCount:0 forObject:child];
         [self collapseDescendantsOfObject:child];
+    }
+}
+
+- (void)removeStateForObjectAndDescendants:(id<MLListItemProtocol>)object {
+    NSParameterAssert(object);
+    [self.stateStore removeStateForItem:object];
+    for (id<MLListItemProtocol> child in object.children) {
+        [self removeStateForObjectAndDescendants:child];
     }
 }
 
@@ -208,15 +281,16 @@
     
     NSAssert(model.type == MLFlattenedItemTypeCell || model.type == MLFlattenedItemTypeFooter, @"Append expects a normal or footer flattened model.");
     id<MLListItemProtocol> rootItem = model.differableObject;
-    NSInteger oldVisibleChildrenCount = MIN(MAX(model.visibleChildrenCount, 0), rootItem.children.count);
+    NSArray<id<MLListItemProtocol>> *children = rootItem.children ?: @[];
+    NSInteger oldVisibleChildrenCount = MIN(MAX(model.itemState.visibleChildrenCount, 0), (NSInteger)children.count);
     NSInteger expandBatchCount = MAX(self.params.expandBatchCount, 1);
-    NSInteger newVisibleChildrenCount = self.params.usesFooter ? MIN(oldVisibleChildrenCount + expandBatchCount, rootItem.children.count) : rootItem.children.count;
+    NSInteger newVisibleChildrenCount = self.params.usesFooter ? MIN(oldVisibleChildrenCount + expandBatchCount, (NSInteger)children.count) : (NSInteger)children.count;
     if (newVisibleChildrenCount <= oldVisibleChildrenCount) {
         return;
     }
 
     NSRange newChildrenRange = NSMakeRange(oldVisibleChildrenCount, newVisibleChildrenCount - oldVisibleChildrenCount);
-    NSArray<id<MLListItemProtocol>> *newVisibleChildren = [rootItem.children subarrayWithRange:newChildrenRange];
+    NSArray<id<MLListItemProtocol>> *newVisibleChildren = [children subarrayWithRange:newChildrenRange];
     NSMutableArray<MLFlattenedItemModel *> *newFlattenedItems = [NSMutableArray array];
     MLFlattenedItemModel *parentModel = model.type == MLFlattenedItemTypeCell ? model : model.parent;
     NSAssert(parentModel != nil, @"Footer model must keep a parent normal model.");
@@ -241,9 +315,9 @@
         return;
     }
     
-    // Update the business model first, then replace the affected flattened
-    // snapshots so IGListKit can diff the new footer text/status.
-    rootItem.visibleChildrenCount = newVisibleChildrenCount;
+    // Update the framework-owned state first, then replace the affected flattened
+    // snapshots so IGListKit can diff the new footer text/display status.
+    [self setVisibleChildrenCount:newVisibleChildrenCount forObject:rootItem];
     
     NSIndexSet *insertIndexes = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(insertIndex, newFlattenedItems.count)];
     [visibleItems insertObjects:newFlattenedItems atIndexes:insertIndexes];
@@ -343,9 +417,8 @@
     
     NSMutableArray<id<MLListItemProtocol>> *children = parentItem.children ?: [NSMutableArray array];
     NSArray<id<MLListItemProtocol>> *oldChildren = [children copy];
-    NSAssert(parentItem.visibleChildrenCount >= 0, @"visibleChildrenCount must be non-negative.");
     NSAssert(parentItem.totalChildrenCount >= 0, @"totalChildrenCount must be non-negative.");
-    NSInteger oldVisibleChildrenCount = MIN(MAX(parentItem.visibleChildrenCount, 0), oldChildren.count);
+    NSInteger oldVisibleChildrenCount = MIN(MAX(parentVisibleModel.itemState.visibleChildrenCount, 0), oldChildren.count);
     // Child insertions operate on the currently visible range. Inserting at
     // the tail places new rows immediately before the footer.
     NSUInteger insertIndex = position == MLListInsertPositionFirst ? 0 : (NSUInteger)oldVisibleChildrenCount;
@@ -355,8 +428,8 @@
     [children insertObjects:items atIndexes:childInsertIndexes];
     parentItem.children = children;
     parentItem.totalChildrenCount = MAX(parentItem.totalChildrenCount + (NSInteger)items.count, parentItem.children.count);
-    parentItem.visibleChildrenCount = oldVisibleChildrenCount + (NSInteger)items.count;
-    parentItem.visibleChildrenCount = MIN(parentItem.visibleChildrenCount, parentItem.children.count);
+    NSInteger newVisibleChildrenCount = MIN(oldVisibleChildrenCount + (NSInteger)items.count, (NSInteger)parentItem.children.count);
+    [self setVisibleChildrenCount:newVisibleChildrenCount forObject:parentItem];
     
     NSUInteger visibleInsertIndex = visibleItems.count;
     if (position == MLListInsertPositionFirst && oldVisibleChildrenCount > 0 && oldChildren.count > 0) {
@@ -420,19 +493,22 @@
     
     // Remove the whole visible subtree, not just the tapped row.
     [visibleItems removeObjectsInRange:deleteRange];
+    [self removeStateForObjectAndDescendants:deletedItem];
     
     if (parentItem != nil) {
         NSUInteger childIndex = [parentItem.children indexOfObjectIdenticalTo:deletedItem];
         if (childIndex != NSNotFound) {
-            NSInteger oldVisibleChildrenCount = parentItem.visibleChildrenCount;
+            NSInteger oldVisibleChildrenCount = parentModel.itemState.visibleChildrenCount;
             [parentItem.children removeObjectAtIndex:childIndex];
             parentItem.totalChildrenCount = MAX(parentItem.totalChildrenCount - 1, 0);
+            NSInteger newVisibleChildrenCount = oldVisibleChildrenCount;
             if (childIndex < oldVisibleChildrenCount) {
                 // Only visible deletions reduce visibleChildrenCount. Deleting
                 // a hidden child should keep the visible range unchanged.
-                parentItem.visibleChildrenCount = MAX(oldVisibleChildrenCount - 1, 0);
+                newVisibleChildrenCount = MAX(oldVisibleChildrenCount - 1, 0);
             }
-            parentItem.visibleChildrenCount = MIN(parentItem.visibleChildrenCount, parentItem.children.count);
+            newVisibleChildrenCount = MIN(newVisibleChildrenCount, (NSInteger)parentItem.children.count);
+            [self setVisibleChildrenCount:newVisibleChildrenCount forObject:parentItem];
             [self replaceVisibleModelForObject:parentItem type:MLFlattenedItemTypeCell inVisibleItems:visibleItems];
             if (parentItem.children.count == 0 || parentItem.totalChildrenCount <= 0) {
                 [self removeVisibleModelForObject:parentItem type:MLFlattenedItemTypeFooter inVisibleItems:visibleItems];
@@ -485,7 +561,7 @@
         [visibleItems removeObjectsInRange:deleteRange];
     }
     
-    rootItem.visibleChildrenCount = 0;
+    [self setVisibleChildrenCount:0 forObject:rootItem];
     if (self.params.collapsesDescendantsOnCollapse) {
         [self collapseDescendantsOfObject:rootItem];
     }

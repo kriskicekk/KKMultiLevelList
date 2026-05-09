@@ -2,7 +2,7 @@
 //  MLDemoListItem.m
 //  KKMultiLevelList
 //
-//  Created by Codex on 2026/4/27.
+//  Created by kris cheng on 2026/4/27.
 //
 
 #import "MLDemoListItem.h"
@@ -17,7 +17,7 @@
         _title = [title copy];
         _children = [NSMutableArray array];
         _totalChildrenCount = totalChildrenCount;
-        _visibleChildrenCount = 0;
+        _initialVisibleChildrenCount = 0;
     }
     return self;
 }
@@ -36,7 +36,7 @@
     MLDemoListItem *item = (MLDemoListItem *)object;
     return [self.itemId isEqualToString:item.itemId]
         && self.children.count == item.children.count
-        && self.visibleChildrenCount == item.visibleChildrenCount
+        && self.initialVisibleChildrenCount == item.initialVisibleChildrenCount
         && self.totalChildrenCount == item.totalChildrenCount;
 }
 

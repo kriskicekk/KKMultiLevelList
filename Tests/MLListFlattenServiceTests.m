@@ -8,7 +8,7 @@
 @property (nonatomic, copy) NSString *itemId;
 @property (nonatomic, nullable, strong) NSMutableArray<id<MLListItemProtocol>> *children;
 @property (nonatomic, assign) NSInteger totalChildrenCount;
-@property (nonatomic, assign) NSInteger visibleChildrenCount;
+@property (nonatomic, assign) NSInteger initialVisibleChildrenCount;
 
 @end
 
@@ -19,7 +19,7 @@
         _itemId = [itemId copy];
         _children = [children mutableCopy];
         _totalChildrenCount = children.count;
-        _visibleChildrenCount = 0;
+        _initialVisibleChildrenCount = 0;
     }
     return self;
 }
@@ -35,12 +35,12 @@
     if (![(id)object isKindOfClass:MLTestItem.class]) {
         return NO;
     }
-    
+
     MLTestItem *item = (MLTestItem *)object;
     return [self.itemId isEqualToString:item.itemId]
         && self.children.count == item.children.count
         && self.totalChildrenCount == item.totalChildrenCount
-        && self.visibleChildrenCount == item.visibleChildrenCount;
+        && self.initialVisibleChildrenCount == item.initialVisibleChildrenCount;
 }
 
 @end
@@ -57,7 +57,7 @@
 
 - (MLTestItem *)itemWithId:(NSString *)itemId children:(NSArray<MLTestItem *> *)children visibleCount:(NSInteger)visibleCount {
     MLTestItem *item = [[MLTestItem alloc] initWithItemId:itemId children:children];
-    item.visibleChildrenCount = visibleCount;
+    item.initialVisibleChildrenCount = visibleCount;
     return item;
 }
 
@@ -76,6 +76,11 @@
     params.usesFooter = usesFooter;
     params.expandBatchCount = 2;
     params.collapsesDescendantsOnCollapse = collapsesDescendantsOnCollapse;
+    params.defaultVisibleChildrenCountProvider = ^NSInteger(id<MLListItemProtocol> item,
+                                                            __unused NSInteger level,
+                                                            __unused id<MLListItemProtocol> parentItem) {
+        return ((MLTestItem *)item).initialVisibleChildrenCount;
+    };
     MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:params];
     service.rootItems = rootItems;
     return service;
@@ -107,14 +112,34 @@
     MLTestItem *child2 = [self itemWithId:@"child-2"];
     MLTestItem *root = [self itemWithId:@"root" children:@[child1, child2] visibleCount:1];
     MLListFlattenService *service = [self serviceWithRootItems:@[root]];
-    
+
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"child-1-cell", @"root-footer"]));
     
     MLFlattenedItemModel *rootModel = [self modelInService:service item:root type:MLFlattenedItemTypeCell];
     MLFlattenedItemModel *footerModel = [self modelInService:service item:root type:MLFlattenedItemTypeFooter];
-    XCTAssertEqual(rootModel.status, MLFlattenedItemStatusPartiallyExpanded);
+    XCTAssertEqual(rootModel.itemState.displayStatus, MLListItemDisplayStatusPartiallyExpanded);
     XCTAssertEqual(footerModel.remainingChildrenCount, 1);
+}
+
+- (void)testDefaultVisibleChildrenCountProviderSeedsEachNode {
+    MLTestItem *child1 = [self itemWithId:@"child-1"];
+    MLTestItem *child2 = [self itemWithId:@"child-2"];
+    MLTestItem *child3 = [self itemWithId:@"child-3"];
+    MLTestItem *root = [self itemWithId:@"root" children:@[child1, child2, child3] visibleCount:0];
+    MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
+    params.defaultVisibleChildrenCountProvider = ^NSInteger(id<MLListItemProtocol> item, NSInteger level, id<MLListItemProtocol> parentItem) {
+        MLTestItem *testItem = (MLTestItem *)item;
+        return [testItem.itemId isEqualToString:@"root"] && level == 0 && parentItem == nil ? 2 : 0;
+    };
+    MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:params];
+
+    service.rootItems = @[root];
+
+    XCTAssertEqual(root.initialVisibleChildrenCount, 0);
+    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 2);
+    XCTAssertEqualObjects([self visibleIdentifiersInService:service],
+                          (@[@"root-cell", @"child-1-cell", @"child-2-cell", @"root-footer"]));
 }
 
 - (void)testAppendVisibleChildrenExpandsByBatchAndRefreshesFooter {
@@ -127,10 +152,11 @@
     MLFlattenedItemModel *footerModel = [self modelInService:service item:root type:MLFlattenedItemTypeFooter];
     [service appendVisibleChildenItemsForRootModel:footerModel];
     
-    XCTAssertEqual(root.visibleChildrenCount, 3);
+    XCTAssertEqual(root.initialVisibleChildrenCount, 1);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"child-1-cell", @"child-2-cell", @"child-3-cell", @"root-footer"]));
-    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeFooter].status, MLFlattenedItemStatusFullyExpanded);
+    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 3);
+    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeFooter].itemState.displayStatus, MLListItemDisplayStatusFullyExpanded);
 }
 
 - (void)testAppendVisibleChildrenWithNilOrFullyExpandedModelDoesNothing {
@@ -142,7 +168,7 @@
     [service appendVisibleChildenItemsForRootModel:nil];
     [service appendVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeFooter]];
     
-    XCTAssertEqual(root.visibleChildrenCount, 1);
+    XCTAssertEqual(root.initialVisibleChildrenCount, 1);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service], oldIdentifiers);
 }
 
@@ -155,9 +181,10 @@
     
     [service appendVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeCell]];
     
-    XCTAssertEqual(root.visibleChildrenCount, 3);
+    XCTAssertEqual(root.initialVisibleChildrenCount, 0);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"child-1-cell", @"child-2-cell", @"child-3-cell"]));
+    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 3);
 }
 
 - (void)testCollapseRemovesVisibleChildrenButKeepsFooter {
@@ -169,10 +196,11 @@
     MLFlattenedItemModel *footerModel = [self modelInService:service item:root type:MLFlattenedItemTypeFooter];
     [service collapseVisibleChildenItemsForRootModel:footerModel];
     
-    XCTAssertEqual(root.visibleChildrenCount, 0);
+    XCTAssertEqual(root.initialVisibleChildrenCount, 2);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"root-footer"]));
-    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeFooter].status, MLFlattenedItemStatusCollapsed);
+    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 0);
+    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeFooter].itemState.displayStatus, MLListItemDisplayStatusCollapsed);
 }
 
 - (void)testCollapseKeepsDescendantExpansionWhenDisabled {
@@ -184,10 +212,11 @@
     [service collapseVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeFooter]];
     [service appendVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeFooter]];
     
-    XCTAssertEqual(child.visibleChildrenCount, 1);
+    XCTAssertEqual(child.initialVisibleChildrenCount, 1);
+    XCTAssertEqual([self modelInService:service item:child type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 1);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"child-cell", @"leaf-cell", @"child-footer", @"root-footer"]));
-    XCTAssertEqual([self modelInService:service item:child type:MLFlattenedItemTypeCell].status, MLFlattenedItemStatusFullyExpanded);
+    XCTAssertEqual([self modelInService:service item:child type:MLFlattenedItemTypeCell].itemState.displayStatus, MLListItemDisplayStatusFullyExpanded);
 }
 
 - (void)testCollapseCanCollapseDescendants {
@@ -202,11 +231,12 @@
     [service collapseVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeFooter]];
     [service appendVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeFooter]];
     
-    XCTAssertEqual(child.visibleChildrenCount, 0);
-    XCTAssertEqual(grandchild.visibleChildrenCount, 0);
+    XCTAssertEqual(child.initialVisibleChildrenCount, 1);
+    XCTAssertEqual(grandchild.initialVisibleChildrenCount, 1);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"child-cell", @"child-footer", @"root-footer"]));
-    XCTAssertEqual([self modelInService:service item:child type:MLFlattenedItemTypeCell].status, MLFlattenedItemStatusCollapsed);
+    XCTAssertEqual([self modelInService:service item:child type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 0);
+    XCTAssertEqual([self modelInService:service item:child type:MLFlattenedItemTypeCell].itemState.displayStatus, MLListItemDisplayStatusCollapsed);
 }
 
 - (void)testCollapseNilOrCollapsedModelDoesNothing {
@@ -218,7 +248,7 @@
     [service collapseVisibleChildenItemsForRootModel:nil];
     [service collapseVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeFooter]];
     
-    XCTAssertEqual(root.visibleChildrenCount, 0);
+    XCTAssertEqual(root.initialVisibleChildrenCount, 0);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service], oldIdentifiers);
 }
 
@@ -285,7 +315,8 @@
     [service insertItem:last toParentItem:root position:MLListInsertPositionLast];
     
     XCTAssertEqualObjects(root.children, (@[first, child1, last, child2]));
-    XCTAssertEqual(root.visibleChildrenCount, 3);
+    XCTAssertEqual(root.initialVisibleChildrenCount, 1);
+    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 3);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"first-cell", @"child-1-cell", @"last-cell", @"root-footer"]));
 }
@@ -300,7 +331,8 @@
     [service insertItems:@[inserted1, inserted2] toParentItem:root position:MLListInsertPositionLast];
     
     XCTAssertEqualObjects(root.children, (@[child1, inserted1, inserted2]));
-    XCTAssertEqual(root.visibleChildrenCount, 3);
+    XCTAssertEqual(root.initialVisibleChildrenCount, 1);
+    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 3);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"child-1-cell", @"inserted-1-cell", @"inserted-2-cell", @"root-footer"]));
 }
@@ -364,7 +396,8 @@
     
     XCTAssertEqualObjects(root.children, (@[child2]));
     XCTAssertEqual(root.totalChildrenCount, 1);
-    XCTAssertEqual(root.visibleChildrenCount, 1);
+    XCTAssertEqual(root.initialVisibleChildrenCount, 2);
+    XCTAssertEqual([self modelInService:service item:root type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 1);
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"child-2-cell", @"root-footer"]));
 }
@@ -421,16 +454,26 @@
 - (void)testFlattenParamsCopyPreservesValuesAndSeparatesInstances {
     MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
     params.expandBatchCount = 12;
+    params.defaultVisibleChildrenCount = 4;
+    params.defaultVisibleChildrenCountProvider = ^NSInteger(__unused id<MLListItemProtocol> item,
+                                                            __unused NSInteger level,
+                                                            __unused id<MLListItemProtocol> parentItem) {
+        return 7;
+    };
     params.usesFooter = NO;
     params.collapsesDescendantsOnCollapse = YES;
     
     MLListFlattenParams *paramsCopy = [params copy];
     params.expandBatchCount = 1;
+    params.defaultVisibleChildrenCount = 0;
+    params.defaultVisibleChildrenCountProvider = nil;
     params.usesFooter = YES;
     params.collapsesDescendantsOnCollapse = NO;
     
     XCTAssertNotEqual(paramsCopy, params);
     XCTAssertEqual(paramsCopy.expandBatchCount, 12);
+    XCTAssertEqual(paramsCopy.defaultVisibleChildrenCount, 4);
+    XCTAssertEqual(paramsCopy.defaultVisibleChildrenCountProvider([self itemWithId:@"root"], 0, nil), 7);
     XCTAssertFalse(paramsCopy.usesFooter);
     XCTAssertTrue(paramsCopy.collapsesDescendantsOnCollapse);
 }
@@ -438,50 +481,67 @@
 - (void)testServiceCopiesInjectedFlattenParams {
     MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
     params.expandBatchCount = 3;
+    params.defaultVisibleChildrenCount = 2;
     params.usesFooter = NO;
     params.collapsesDescendantsOnCollapse = YES;
     
     MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:params];
     params.expandBatchCount = 8;
+    params.defaultVisibleChildrenCount = 0;
     params.usesFooter = YES;
     params.collapsesDescendantsOnCollapse = NO;
     
     XCTAssertNotEqual(service.params, params);
     XCTAssertEqual(service.params.expandBatchCount, 3);
+    XCTAssertEqual(service.params.defaultVisibleChildrenCount, 2);
     XCTAssertFalse(service.params.usesFooter);
     XCTAssertTrue(service.params.collapsesDescendantsOnCollapse);
 }
 
-- (void)testStatusDidChangeHandlerIsAppliedToExistingAndNewModels {
+- (void)testDisplayStatusDidChangeHandlerIsAppliedToExistingAndNewModels {
     MLTestItem *root = [self itemWithId:@"root"];
     MLListFlattenService *service = [self serviceWithRootItems:@[root]];
     __block NSInteger callCount = 0;
-    service.statusDidChangeHandler = ^(__unused MLFlattenedItemModel *changedModel) {
+    service.displayStatusDidChangeHandler = ^(__unused MLFlattenedItemModel *changedModel) {
         callCount++;
     };
     
-    [self modelInService:service item:root type:MLFlattenedItemTypeCell].status = MLFlattenedItemStatusLoading;
+    [self modelInService:service item:root type:MLFlattenedItemTypeCell].itemState.displayStatus = MLListItemDisplayStatusLoading;
     MLTestItem *inserted = [self itemWithId:@"inserted"];
     [service insertRootItem:inserted position:MLListInsertPositionLast];
-    [self modelInService:service item:inserted type:MLFlattenedItemTypeCell].status = MLFlattenedItemStatusLoading;
+    [self modelInService:service item:inserted type:MLFlattenedItemTypeCell].itemState.displayStatus = MLListItemDisplayStatusLoading;
     
     XCTAssertEqual(callCount, 2);
 }
 
-- (void)testStatusChangeHandlerFiresOnlyWhenStatusChanges {
+- (void)testDisplayStatusChangeDoesNotPersistAcrossRebuild {
+    MLTestItem *child = [self itemWithId:@"child"];
+    MLTestItem *root = [self itemWithId:@"root" children:@[child] visibleCount:0];
+    MLListFlattenService *service = [self serviceWithRootItems:@[root]];
+    MLFlattenedItemModel *model = [self modelInService:service item:root type:MLFlattenedItemTypeCell];
+
+    model.itemState.displayStatus = MLListItemDisplayStatusLoading;
+    service.rootItems = @[root];
+
+    MLFlattenedItemModel *rebuiltModel = [self modelInService:service item:root type:MLFlattenedItemTypeCell];
+    XCTAssertEqual(rebuiltModel.itemState.visibleChildrenCount, 0);
+    XCTAssertEqual(rebuiltModel.itemState.displayStatus, MLListItemDisplayStatusCollapsed);
+}
+
+- (void)testDisplayStatusChangeHandlerFiresOnlyWhenDisplayStatusChanges {
     MLTestItem *root = [self itemWithId:@"root"];
     MLFlattenedItemModel *model = [[MLFlattenedItemModel alloc] initWithDifferableObject:root
                                                                                   parent:nil
                                                                                    level:0
                                                                                     type:MLFlattenedItemTypeCell];
     __block NSInteger callCount = 0;
-    model.statusDidChangeHandler = ^(__unused MLFlattenedItemModel *changedModel) {
+    model.displayStatusDidChangeHandler = ^(__unused MLFlattenedItemModel *changedModel) {
         callCount++;
     };
     
-    model.status = MLFlattenedItemStatusLoading;
-    model.status = MLFlattenedItemStatusLoading;
-    model.status = MLFlattenedItemStatusLoadFailed;
+    model.itemState.displayStatus = MLListItemDisplayStatusLoading;
+    model.itemState.displayStatus = MLListItemDisplayStatusLoading;
+    model.itemState.displayStatus = MLListItemDisplayStatusLoadFailed;
     
     XCTAssertEqual(callCount, 2);
 }
@@ -489,17 +549,17 @@
 - (void)testDiffEqualityIncludesCountSnapshots {
     MLTestItem *root = [self itemWithId:@"root"];
     root.totalChildrenCount = 3;
-    root.visibleChildrenCount = 1;
     MLFlattenedItemModel *oldModel = [[MLFlattenedItemModel alloc] initWithDifferableObject:root
                                                                                     parent:nil
                                                                                      level:0
-                                                                                      type:MLFlattenedItemTypeFooter];
+                                                                                      type:MLFlattenedItemTypeFooter
+                                                                      visibleChildrenCount:1];
     
-    root.visibleChildrenCount = 2;
     MLFlattenedItemModel *newModel = [[MLFlattenedItemModel alloc] initWithDifferableObject:root
                                                                                     parent:nil
                                                                                      level:0
-                                                                                      type:MLFlattenedItemTypeFooter];
+                                                                                      type:MLFlattenedItemTypeFooter
+                                                                      visibleChildrenCount:2];
     
     XCTAssertFalse([oldModel isEqualToDiffableObject:newModel]);
 }

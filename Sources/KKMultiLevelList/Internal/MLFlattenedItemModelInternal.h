@@ -12,10 +12,17 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@interface MLListItemState ()
+
+/// Callback used by the owning flattened model when only display status changes.
+@property (nonatomic, nullable, copy) void (^displayStatusDidChangeHandler)(MLListItemState *state);
+
+@end
+
 @interface MLFlattenedItemModel ()
 
-/// Callback used by the manager to reload this row when only status changes.
-@property (nonatomic, nullable, copy) MLFlattenedItemStatusDidChangeHandler statusDidChangeHandler;
+/// Callback used by the manager to reload this row when only display status changes.
+@property (nonatomic, nullable, copy) MLFlattenedItemDisplayStatusDidChangeHandler displayStatusDidChangeHandler;
 
 /// Creates a flattened model for a business item.
 ///
@@ -26,7 +33,17 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)initWithDifferableObject:(id<MLListItemProtocol>)object
                                   parent:(nullable MLFlattenedItemModel *)parent
                                    level:(NSInteger)level
-                                    type:(MLFlattenedItemType)type NS_DESIGNATED_INITIALIZER;
+                                    type:(MLFlattenedItemType)type;
+
+/// Creates a flattened model with framework-owned state snapshots.
+///
+/// @param visibleChildrenCount Snapshot of currently visible children.
+- (instancetype)initWithDifferableObject:(id<MLListItemProtocol>)object
+                                  parent:(nullable MLFlattenedItemModel *)parent
+                                   level:(NSInteger)level
+                                    type:(MLFlattenedItemType)type
+                    visibleChildrenCount:(NSInteger)visibleChildrenCount
+    NS_DESIGNATED_INITIALIZER;
 
 @end
 

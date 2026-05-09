@@ -2,7 +2,7 @@
 //  MLDemoListItem.h
 //  KKMultiLevelList
 //
-//  Created by Codex on 2026/4/27.
+//  Created by kris cheng on 2026/4/27.
 //
 
 #import <Foundation/Foundation.h>
@@ -17,7 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy) NSString *title;
 @property (nonatomic, nullable, strong) NSMutableArray<id<MLListItemProtocol>> *children;
 @property (nonatomic, assign) NSInteger totalChildrenCount;
-@property (nonatomic, assign) NSInteger visibleChildrenCount;
+@property (nonatomic, assign) NSInteger initialVisibleChildrenCount;
 
 - (instancetype)initWithItemId:(NSString *)itemId
                          title:(NSString *)title

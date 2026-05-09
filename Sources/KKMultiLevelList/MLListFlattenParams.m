@@ -12,6 +12,7 @@
 - (instancetype)init {
     if (self = [super init]) {
         _expandBatchCount = 5;
+        _defaultVisibleChildrenCount = 0;
         _usesFooter = YES;
         _collapsesDescendantsOnCollapse = NO;
     }
@@ -21,6 +22,8 @@
 - (id)copyWithZone:(NSZone *)zone {
     MLListFlattenParams *params = [[[self class] allocWithZone:zone] init];
     params.expandBatchCount = self.expandBatchCount;
+    params.defaultVisibleChildrenCount = self.defaultVisibleChildrenCount;
+    params.defaultVisibleChildrenCountProvider = self.defaultVisibleChildrenCountProvider;
     params.usesFooter = self.usesFooter;
     params.collapsesDescendantsOnCollapse = self.collapsesDescendantsOnCollapse;
     return params;
