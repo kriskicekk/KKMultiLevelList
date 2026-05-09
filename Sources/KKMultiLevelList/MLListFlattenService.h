@@ -48,6 +48,12 @@ typedef NS_ENUM(NSInteger, MLListInsertPosition) {
 /// Current flat list consumed by IGListKit.
 @property (nonatomic, strong, readonly) NSArray<MLFlattenedItemModel *> *visibleItems;
 
+/// Returns the current visible model for the same item identity and row type.
+///
+/// Use this before applying structural operations to a model retained by a cell
+/// or asynchronous block. If the item is no longer visible, this returns `nil`.
+- (nullable MLFlattenedItemModel *)visibleModelMatchingModel:(MLFlattenedItemModel *)model;
+
 /// Creates a flatten service with optional custom configuration.
 - (instancetype)initWithParams:(nullable MLListFlattenParams *)params NS_DESIGNATED_INITIALIZER;
 

@@ -159,23 +159,23 @@
 
 - (nullable MLFlattenedItemModel *)currentVisibleModelMatchingModel:(MLFlattenedItemModel *)model {
     NSParameterAssert(model);
-    for (MLFlattenedItemModel *visibleModel in self.visibleItems) {
-        BOOL sameObject = visibleModel.differableObject == model.differableObject;
-        BOOL sameType = visibleModel.type == model.type;
-        if (sameObject && sameType) {
-            return visibleModel;
-        }
-    }
-    return nil;
+    return [self.flattenService visibleModelMatchingModel:model];
 }
     
 - (void)appendFlattenItemsWithModel:(MLFlattenedItemModel *)model
                            animated:(BOOL)animated
                          completion:(IGListUpdaterCompletion)completion {
     NSParameterAssert(model);
+    MLFlattenedItemModel *currentModel = [self currentVisibleModelMatchingModel:model];
+    if (currentModel == nil) {
+        if (completion) {
+            completion(NO);
+        }
+        return;
+    }
     // Structural changes update visibleItems first, then ask IGListKit to diff
     // the old and new flattened projections.
-    [self.flattenService appendVisibleChildenItemsForRootModel:model];
+    [self.flattenService appendVisibleChildenItemsForRootModel:currentModel];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
 
@@ -239,7 +239,14 @@
                             animated:(BOOL)animated
                           completion:(IGListUpdaterCompletion)completion {
     NSParameterAssert(model);
-    [self.flattenService deleteVisibleChildenItemsForRootModel:model];
+    MLFlattenedItemModel *currentModel = [self currentVisibleModelMatchingModel:model];
+    if (currentModel == nil) {
+        if (completion) {
+            completion(NO);
+        }
+        return;
+    }
+    [self.flattenService deleteVisibleChildenItemsForRootModel:currentModel];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
 
@@ -247,7 +254,14 @@
                               animated:(BOOL)animated
                             completion:(IGListUpdaterCompletion)completion {
     NSParameterAssert(model);
-    [self.flattenService collapseVisibleChildenItemsForRootModel:model];
+    MLFlattenedItemModel *currentModel = [self currentVisibleModelMatchingModel:model];
+    if (currentModel == nil) {
+        if (completion) {
+            completion(NO);
+        }
+        return;
+    }
+    [self.flattenService collapseVisibleChildenItemsForRootModel:currentModel];
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
 

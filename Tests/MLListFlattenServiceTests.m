@@ -310,6 +310,52 @@
     XCTAssertEqualObjects(rootItems, (@[inserted]));
 }
 
+- (void)testVisibleModelMatchingModelUsesCurrentVisibleIndex {
+    MLTestItem *oldRoot = [self itemWithId:@"root"];
+    MLListFlattenService *service = [self serviceWithRootItems:@[oldRoot]];
+    MLFlattenedItemModel *oldModel = [self modelInService:service item:oldRoot type:MLFlattenedItemTypeCell];
+    MLTestItem *newRoot = [self itemWithId:@"root"];
+
+    service.rootItems = [@[newRoot] mutableCopy];
+
+    MLFlattenedItemModel *currentModel = [service visibleModelMatchingModel:oldModel];
+    XCTAssertNotNil(currentModel);
+    XCTAssertNotEqual(currentModel, oldModel);
+    XCTAssertEqual(currentModel.differableObject, newRoot);
+}
+
+- (void)testAppendWithStaleModelUsesCurrentVisibleIndex {
+    MLTestItem *oldChild = [self itemWithId:@"old-child"];
+    MLTestItem *oldRoot = [self itemWithId:@"root" children:@[oldChild] visibleCount:0];
+    MLListFlattenService *service = [self serviceWithRootItems:@[oldRoot]];
+    MLFlattenedItemModel *oldFooterModel = [self modelInService:service item:oldRoot type:MLFlattenedItemTypeFooter];
+    MLTestItem *newChild = [self itemWithId:@"new-child"];
+    MLTestItem *newRoot = [self itemWithId:@"root" children:@[newChild] visibleCount:0];
+
+    service.rootItems = [@[newRoot] mutableCopy];
+    [service appendVisibleChildenItemsForRootModel:oldFooterModel];
+
+    XCTAssertNil([self modelInService:service item:oldChild type:MLFlattenedItemTypeCell]);
+    XCTAssertEqual([self modelInService:service item:newRoot type:MLFlattenedItemTypeCell].itemState.visibleChildrenCount, 1);
+    XCTAssertEqualObjects([self visibleIdentifiersInService:service],
+                          (@[@"root-cell", @"new-child-cell", @"root-footer"]));
+}
+
+- (void)testInsertItemsToStaleParentUsesCurrentVisibleIndex {
+    MLTestItem *oldRoot = [self itemWithId:@"root"];
+    MLListFlattenService *service = [self serviceWithRootItems:@[oldRoot]];
+    MLTestItem *newRoot = [self itemWithId:@"root"];
+    MLTestItem *inserted = [self itemWithId:@"inserted"];
+
+    service.rootItems = [@[newRoot] mutableCopy];
+    [service insertItem:inserted toParentItem:oldRoot position:MLListInsertPositionLast];
+
+    XCTAssertEqual(oldRoot.children.count, 0);
+    XCTAssertEqualObjects(newRoot.children, (@[inserted]));
+    XCTAssertEqualObjects([self visibleIdentifiersInService:service],
+                          (@[@"root-cell", @"inserted-cell"]));
+}
+
 - (void)testInsertEmptyRootItemsDoesNothing {
     MLTestItem *root = [self itemWithId:@"root"];
     MLListFlattenService *service = [self serviceWithRootItems:@[root]];
