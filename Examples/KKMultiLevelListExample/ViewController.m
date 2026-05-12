@@ -44,6 +44,7 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
 - (MLDemoListItem *)loadMoreDemoItemAtIndex:(NSInteger)index;
 - (void)handleTitleCellLongPress:(UILongPressGestureRecognizer *)gestureRecognizer;
 - (void)presentDeleteConfirmationForModel:(MLFlattenedItemModel *)model;
+- (void)deleteRootItemForModel:(MLFlattenedItemModel *)model;
 
 @end
 
@@ -408,7 +409,7 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
     return label;
 }
 
-- (NSMutableArray<id<MLListItemProtocol>> *)objectsForMLListManager:(MLListManager *)listManager {
+- (NSArray<id<MLListItemProtocol>> *)objectsForMLListManager:(MLListManager *)listManager {
     return self.items;
 }
 
@@ -509,9 +510,21 @@ static NSInteger const kDemoLoadMoreItemsPerPage = 5;
                                                                       preferredStyle:UIAlertControllerStyleAlert];
     [alertController addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
     [alertController addAction:[UIAlertAction actionWithTitle:@"删除" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action) {
+        [self deleteRootItemForModel:model];
         [self.listManager deleteFlattenItemsWithModel:model animated:YES completion:nil];
     }]];
     [self presentViewController:alertController animated:YES completion:nil];
+}
+
+- (void)deleteRootItemForModel:(MLFlattenedItemModel *)model {
+    if (model.parent != nil) {
+        return;
+    }
+
+    NSUInteger rootIndex = [self.items indexOfObjectIdenticalTo:model.differableObject];
+    if (rootIndex != NSNotFound) {
+        [self.items removeObjectAtIndex:rootIndex];
+    }
 }
 
 @end

@@ -120,7 +120,7 @@ typedef MLBenchmarkOperation (^MLBenchmarkOperationFactory)(void);
     return rootItems;
 }
 
-- (MLListFlattenService *)serviceWithRootItems:(NSMutableArray<id<MLListItemProtocol>> *)rootItems
+- (MLListFlattenService *)serviceWithRootItems:(NSArray<id<MLListItemProtocol>> *)rootItems
                               expandBatchCount:(NSInteger)expandBatchCount {
     MLListFlattenParams *params = [[MLListFlattenParams alloc] init];
     params.usesFooter = YES;
@@ -477,7 +477,7 @@ typedef MLBenchmarkOperation (^MLBenchmarkOperationFactory)(void);
 
         return ^{
             [service deleteVisibleChildenItemsForRootModel:lastRootModel];
-            XCTAssertEqual(rootItems.count, MLBenchmarkNodeCount - 1);
+            XCTAssertEqual(service.rootItems.count, MLBenchmarkNodeCount);
             XCTAssertEqual(service.visibleItems.count, MLBenchmarkNodeCount - 1);
         };
     }];

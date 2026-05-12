@@ -82,7 +82,7 @@
         return ((MLTestItem *)item).initialVisibleChildrenCount;
     };
     MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:params];
-    service.rootItems = [rootItems mutableCopy];
+    service.rootItems = [rootItems copy];
     return service;
 }
 
@@ -120,6 +120,20 @@
     MLFlattenedItemModel *footerModel = [self modelInService:service item:root type:MLFlattenedItemTypeFooter];
     XCTAssertEqual(rootModel.itemState.displayStatus, MLListItemDisplayStatusPartiallyExpanded);
     XCTAssertEqual(footerModel.remainingChildrenCount, 1);
+}
+
+- (void)testSetRootItemsCopiesBusinessRootArray {
+    MLTestItem *root = [self itemWithId:@"root"];
+    MLTestItem *inserted = [self itemWithId:@"inserted"];
+    NSMutableArray<id<MLListItemProtocol>> *rootItems = [@[root] mutableCopy];
+    MLListFlattenService *service = [[MLListFlattenService alloc] initWithParams:nil];
+
+    service.rootItems = rootItems;
+    [rootItems addObject:inserted];
+
+    XCTAssertNotEqual(service.rootItems, rootItems);
+    XCTAssertEqualObjects(service.rootItems, (@[root]));
+    XCTAssertEqualObjects([self visibleIdentifiersInService:service], (@[@"root-cell"]));
 }
 
 - (void)testDefaultVisibleChildrenCountProviderSeedsEachNode {
@@ -261,7 +275,7 @@
     
     [service insertRootItems:@[inserted1, inserted2] atIndex:1];
     
-    XCTAssertEqualObjects(service.rootItems, (@[root1, inserted1, inserted2, root2]));
+    XCTAssertEqualObjects(service.rootItems, (@[root1, root2]));
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-1-cell", @"inserted-1-cell", @"inserted-2-cell", @"root-2-cell"]));
 }
@@ -273,7 +287,7 @@
     
     [service insertRootItems:@[inserted] atIndex:100];
     
-    XCTAssertEqualObjects(service.rootItems, (@[root, inserted]));
+    XCTAssertEqualObjects(service.rootItems, (@[root]));
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"inserted-cell"]));
 }
@@ -287,12 +301,12 @@
     [service insertRootItem:first position:MLListInsertPositionFirst];
     [service insertRootItems:@[last] position:MLListInsertPositionLast];
     
-    XCTAssertEqualObjects(service.rootItems, (@[first, root, last]));
+    XCTAssertEqualObjects(service.rootItems, (@[root]));
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"first-cell", @"root-cell", @"last-cell"]));
 }
 
-- (void)testRootMutationsKeepBusinessRootArraySynchronized {
+- (void)testRootMutationsDoNotModifyBusinessRootArray {
     MLTestItem *root = [self itemWithId:@"root"];
     MLTestItem *inserted = [self itemWithId:@"inserted"];
     NSMutableArray<id<MLListItemProtocol>> *rootItems = [@[root] mutableCopy];
@@ -301,13 +315,17 @@
     
     [service insertRootItem:inserted position:MLListInsertPositionLast];
     
-    XCTAssertEqual(service.rootItems, rootItems);
-    XCTAssertEqualObjects(rootItems, (@[root, inserted]));
+    XCTAssertNotEqual(service.rootItems, rootItems);
+    XCTAssertEqualObjects(rootItems, (@[root]));
+    XCTAssertEqualObjects(service.rootItems, (@[root]));
+    XCTAssertEqualObjects([self visibleIdentifiersInService:service], (@[@"root-cell", @"inserted-cell"]));
     
     [service deleteVisibleChildenItemsForRootModel:[self modelInService:service item:root type:MLFlattenedItemTypeCell]];
     
-    XCTAssertEqual(service.rootItems, rootItems);
-    XCTAssertEqualObjects(rootItems, (@[inserted]));
+    XCTAssertNotEqual(service.rootItems, rootItems);
+    XCTAssertEqualObjects(rootItems, (@[root]));
+    XCTAssertEqualObjects(service.rootItems, (@[root]));
+    XCTAssertEqualObjects([self visibleIdentifiersInService:service], (@[@"inserted-cell"]));
 }
 
 - (void)testVisibleModelMatchingModelUsesCurrentVisibleIndex {
@@ -433,19 +451,19 @@
     
     [service insertItems:@[inserted1, inserted2] toParentItem:nil position:MLListInsertPositionLast];
     
-    XCTAssertEqualObjects(service.rootItems, (@[root, inserted1, inserted2]));
+    XCTAssertEqualObjects(service.rootItems, (@[root]));
     XCTAssertEqualObjects([self visibleIdentifiersInService:service],
                           (@[@"root-cell", @"inserted-1-cell", @"inserted-2-cell"]));
 }
 
-- (void)testDeleteRootItemUpdatesRootItemsAndVisibleItems {
+- (void)testDeleteRootItemUpdatesOnlyVisibleItems {
     MLTestItem *root1 = [self itemWithId:@"root-1"];
     MLTestItem *root2 = [self itemWithId:@"root-2"];
     MLListFlattenService *service = [self serviceWithRootItems:@[root1, root2]];
     
     [service deleteVisibleChildenItemsForRootModel:[self modelInService:service item:root1 type:MLFlattenedItemTypeCell]];
     
-    XCTAssertEqualObjects(service.rootItems, (@[root2]));
+    XCTAssertEqualObjects(service.rootItems, (@[root1, root2]));
     XCTAssertEqualObjects([self visibleIdentifiersInService:service], (@[@"root-2-cell"]));
 }
 
