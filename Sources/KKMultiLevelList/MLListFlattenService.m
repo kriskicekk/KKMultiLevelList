@@ -10,6 +10,10 @@
 #import "Internal/MLFlattenedItemModelInternal.h"
 #import "Internal/MLListStateStore.h"
 
+#ifndef MLListAssertMainThread
+#define MLListAssertMainThread() NSCAssert(([NSThread isMainThread] == YES), @"MLListFlattenService mutations must run on the main thread.")
+#endif
+
 static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlattenedItemType type) {
     NSCParameterAssert(item);
     id<NSObject> diffIdentifier = [item diffIdentifier];
@@ -47,6 +51,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
 #pragma mark - Setter
 
 - (void)setRootItems:(NSArray<id<MLListItemProtocol>> *)rootItems {
+    MLListAssertMainThread();
     _rootItems = [rootItems copy];
     [self updateVisibleItems:[self visibleItemsForItems:self.rootItems ?: @[] level:0]];
 }
@@ -423,6 +428,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
 #pragma mark - Action
 
 - (void)appendVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model {
+    MLListAssertMainThread();
     if (model == nil) {
         return;
     }
@@ -486,6 +492,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
 
 - (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
                 atIndex:(NSUInteger)index {
+    MLListAssertMainThread();
     NSParameterAssert(items);
     if (items.count == 0) {
         return;
@@ -540,6 +547,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
 - (void)insertItems:(NSArray<id<MLListItemProtocol>> *)items
         toParentItem:(nullable id<MLListItemProtocol>)parentItem
             position:(MLListInsertPosition)position {
+    MLListAssertMainThread();
     NSParameterAssert(items);
     if (items.count == 0) {
         return;
@@ -611,6 +619,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
 }
 
 - (void)deleteVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model {
+    MLListAssertMainThread();
     if (model == nil) {
         return;
     }
@@ -660,6 +669,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
 }
 
 - (void)collapseVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model {
+    MLListAssertMainThread();
     if (model == nil) {
         return;
     }
