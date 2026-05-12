@@ -51,12 +51,13 @@ manager.delegate = self;
 [manager performUpdatesAnimated:NO completion:nil];
 ```
 
-The data source provides the business-owned mutable root tree items. The manager
-keeps the same array reference, so root insert/delete APIs stay synchronized with
-your data source:
+The data source provides the business-owned root tree snapshot. Keep root
+insertions and deletions in your own data source, then call the manager to
+perform updates; the framework reads the fresh immutable snapshot and never
+mutates the array you return:
 
 ```objc
-- (NSMutableArray<id<MLListItemProtocol>> *)objectsForMLListManager:(MLListManager *)listManager {
+- (NSArray<id<MLListItemProtocol>> *)objectsForMLListManager:(MLListManager *)listManager {
     return self.items;
 }
 ```
