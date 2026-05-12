@@ -24,17 +24,17 @@ typedef NS_ENUM(NSInteger, MLListInsertPosition) {
 
 /// Maintains the tree-to-flat projection used by `MLListManager`.
 ///
-/// This class is intentionally UI-agnostic. It owns the current root items,
-/// produces `MLFlattenedItemModel` objects for IGListKit, and updates the flat
-/// projection when callers expand, collapse, insert, or delete nodes.
+/// This class is intentionally UI-agnostic. It reads an immutable snapshot of
+/// the current root items, produces `MLFlattenedItemModel` objects for
+/// IGListKit, and updates the flat projection when callers expand, collapse,
+/// insert, or delete nodes.
 @interface MLListFlattenService : NSObject
 
-/// Mutable root tree items used as the source for flattening.
+/// Immutable root tree snapshot used as the source for flattening.
 ///
-/// Assigning this property keeps the same array reference and rebuilds
-/// `visibleItems`. Root mutation APIs modify this array in place so the
-/// business layer and manager stay synchronized.
-@property (nonatomic, nullable, strong) NSMutableArray<id<MLListItemProtocol>> *rootItems;
+/// Assigning this property copies the array and rebuilds `visibleItems`. The
+/// framework never mutates the caller-provided root array.
+@property (nonatomic, nullable, copy) NSArray<id<MLListItemProtocol>> *rootItems;
 
 /// Flattening configuration.
 @property (nonatomic, copy, readonly) MLListFlattenParams *params;
@@ -66,23 +66,27 @@ typedef NS_ENUM(NSInteger, MLListInsertPosition) {
 /// shown, the method is a no-op.
 - (void)appendVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model;
 
-/// Inserts one root item at a specific root index.
+/// Inserts one root item into the visible projection.
 ///
-/// Indexes greater than the current root count append to the end.
+/// Indexes greater than the current root count append to the end. This updates
+/// only the flat projection. Business data sources remain the caller's
+/// responsibility, and `rootItems` is never mutated.
 - (void)insertRootItem:(id<MLListItemProtocol>)item
                atIndex:(NSUInteger)index;
 
-/// Inserts root items at a specific root index while preserving array order.
+/// Inserts root items into the visible projection while preserving order.
 ///
-/// Indexes greater than the current root count append to the end.
+/// Indexes greater than the current root count append to the end. This updates
+/// only the flat projection. Business data sources remain the caller's
+/// responsibility, and `rootItems` is never mutated.
 - (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
                 atIndex:(NSUInteger)index;
 
-/// Inserts one root item at the beginning or end of the root list.
+/// Inserts one root item at the beginning or end of the visible projection.
 - (void)insertRootItem:(id<MLListItemProtocol>)item
               position:(MLListInsertPosition)position;
 
-/// Inserts root items at the beginning or end of the root list.
+/// Inserts root items at the beginning or end of the visible projection.
 - (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
                position:(MLListInsertPosition)position;
 
@@ -106,7 +110,8 @@ typedef NS_ENUM(NSInteger, MLListInsertPosition) {
 /// Deletes the subtree represented by a currently visible flattened model.
 ///
 /// Deleting a child updates its parent's children/count/footer state. Deleting a
-/// root item removes it from `rootItems`.
+/// root item removes only the visible subtree; caller-provided root arrays and
+/// the service's `rootItems` snapshot are never mutated.
 - (void)deleteVisibleChildenItemsForRootModel:(nullable MLFlattenedItemModel *)model;
 
 /// Collapses the backing item of `model` by hiding all visible descendants.

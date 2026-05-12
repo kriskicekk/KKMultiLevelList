@@ -30,7 +30,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Business UI delegate. Cells, sizes, insets, and selection handling live here.
 @property (nonatomic, nullable, weak) id<MLManagerDelegate> delegate;
 
-/// Business data source that supplies the mutable root tree items.
+/// Business data source that supplies the immutable root tree snapshot.
 @property (nonatomic, nullable, weak) id<MLListDataSource> dataSource;
 
 /// Service that owns the current tree-to-flat projection.
@@ -56,25 +56,29 @@ NS_ASSUME_NONNULL_BEGIN
                                    animated:(BOOL)animated
                                  completion:(nullable IGListUpdaterCompletion)completion;
 
-/// Inserts one root item at a specific root index.
+/// Updates the visible projection after the business layer inserts one root item.
+///
+/// Update the data source first; the manager does not mutate root items.
 - (void)insertRootItem:(id<MLListItemProtocol>)item
                atIndex:(NSUInteger)index
               animated:(BOOL)animated
             completion:(nullable IGListUpdaterCompletion)completion;
 
-/// Inserts root items at a specific root index while preserving order.
+/// Updates the visible projection after the business layer inserts root items.
+///
+/// Update the data source first; the manager does not mutate root items.
 - (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
                 atIndex:(NSUInteger)index
                animated:(BOOL)animated
              completion:(nullable IGListUpdaterCompletion)completion;
 
-/// Inserts one root item at the beginning or end of the root list.
+/// Updates the visible projection after the business layer inserts one root item.
 - (void)insertRootItem:(id<MLListItemProtocol>)item
               position:(MLListInsertPosition)position
               animated:(BOOL)animated
             completion:(nullable IGListUpdaterCompletion)completion;
 
-/// Inserts root items at the beginning or end of the root list.
+/// Updates the visible projection after the business layer inserts root items.
 - (void)insertRootItems:(NSArray<id<MLListItemProtocol>> *)items
                position:(MLListInsertPosition)position
                animated:(BOOL)animated
@@ -82,7 +86,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Inserts one item into a parent item's currently visible child range.
 ///
-/// Passing `nil` for `parentItem` inserts into the root list.
+/// Passing `nil` for `parentItem` updates the root-level visible projection.
+/// Update the business-owned root data source before calling.
 - (void)insertItem:(id<MLListItemProtocol>)item
       toParentItem:(nullable id<MLListItemProtocol>)parentItem
           position:(MLListInsertPosition)position
@@ -91,8 +96,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// Inserts items into a parent item's currently visible child range.
 ///
-/// Passing `nil` for `parentItem` inserts into the root list. The order of
-/// `items` is preserved.
+/// Passing `nil` for `parentItem` updates the root-level visible projection.
+/// Update the business-owned root data source before calling. The order of `items` is
+/// preserved for child insertions.
 - (void)insertItems:(NSArray<id<MLListItemProtocol>> *)items
         toParentItem:(nullable id<MLListItemProtocol>)parentItem
             position:(MLListInsertPosition)position
@@ -100,6 +106,9 @@ NS_ASSUME_NONNULL_BEGIN
           completion:(nullable IGListUpdaterCompletion)completion;
 
 /// Deletes the visible subtree represented by `model`.
+///
+/// For root models, update the business-owned root data source before calling;
+/// the manager removes only the visible projection for that subtree.
 - (void)deleteFlattenItemsWithModel:(MLFlattenedItemModel *)model
                             animated:(BOOL)animated
                           completion:(nullable IGListUpdaterCompletion)completion;

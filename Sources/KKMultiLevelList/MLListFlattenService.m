@@ -46,11 +46,9 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
 
 #pragma mark - Setter
 
-- (void)setRootItems:(NSMutableArray<id<MLListItemProtocol>> *)rootItems {
-    // Keep the business-owned mutable root array. Root insert/delete APIs
-    // mutate this same container so the host data source remains synchronized.
-    _rootItems = rootItems;
-    [self updateVisibleItems:[self visibleItemsForItems:self.rootItems level:0]];
+- (void)setRootItems:(NSArray<id<MLListItemProtocol>> *)rootItems {
+    _rootItems = [rootItems copy];
+    [self updateVisibleItems:[self visibleItemsForItems:self.rootItems ?: @[] level:0]];
 }
 
 - (void)setDisplayStatusDidChangeHandler:(MLFlattenedItemDisplayStatusDidChangeHandler)displayStatusDidChangeHandler {
@@ -493,12 +491,7 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
         return;
     }
     
-    NSMutableArray<id<MLListItemProtocol>> *rootItems = self.rootItems;
-    if (rootItems == nil) {
-        rootItems = [NSMutableArray array];
-        _rootItems = rootItems;
-    }
-    NSArray<id<MLListItemProtocol>> *oldRootItems = [rootItems copy];
+    NSArray<id<MLListItemProtocol>> *oldRootItems = self.rootItems ?: @[];
     NSUInteger insertIndex = MIN(index, oldRootItems.count);
     NSUInteger visibleInsertIndex = self.visibleItems.count;
     if (insertIndex < oldRootItems.count) {
@@ -509,9 +502,6 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
             visibleInsertIndex = nextVisibleIndex;
         }
     }
-    
-    NSIndexSet *rootInsertIndexes = [NSIndexSet indexSetWithIndexesInRange:NSMakeRange(insertIndex, items.count)];
-    [rootItems insertObjects:items atIndexes:rootInsertIndexes];
     
     NSMutableArray<MLFlattenedItemModel *> *newFlattenedItems = [NSMutableArray array];
     for (id<MLListItemProtocol> item in items) {
@@ -641,8 +631,6 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
     
     MLFlattenedItemModel *parentModel = model.parent;
     id<MLListItemProtocol> parentItem = parentModel.differableObject;
-    NSMutableArray<id<MLListItemProtocol>> *rootItems = self.rootItems;
-    
     // Remove the whole visible subtree, not just the tapped row.
     [self removeVisibleItemsInRange:deleteRange];
     [self removeStateForObjectAndDescendants:deletedItem];
@@ -667,11 +655,6 @@ static NSString *MLListVisibleModelIndexKey(id<MLListItemProtocol> item, MLFlatt
             } else {
                 [self replaceVisibleModelForObject:parentItem type:MLFlattenedItemTypeFooter];
             }
-        }
-    } else {
-        NSUInteger rootIndex = rootItems == nil ? NSNotFound : [rootItems indexOfObjectIdenticalTo:deletedItem];
-        if (rootIndex != NSNotFound) {
-            [rootItems removeObjectAtIndex:rootIndex];
         }
     }
 }

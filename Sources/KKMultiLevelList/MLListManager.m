@@ -117,9 +117,7 @@
 
 - (void)performUpdatesAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion {
     NSAssert(self.dataSource != nil, @"MLListManager dataSource must be set before performing updates.");
-    NSMutableArray<id<MLListItemProtocol>> *objects = [self.dataSource objectsForMLListManager:self] ?: [NSMutableArray array];
-    // Keep the same mutable root array owned by the business layer. Structural
-    // root mutations performed by this manager update that shared container.
+    NSArray<id<MLListItemProtocol>> *objects = [self.dataSource objectsForMLListManager:self] ?: @[];
     self.flattenService.rootItems = objects;
     [self.adapter performUpdatesAnimated:animated completion:completion];
 }
